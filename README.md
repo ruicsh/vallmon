@@ -84,7 +84,7 @@ the same adaptive behavior as the baseline.
 - **Reproducibility:** each row is written once and never silently rewritten. If
   Yahoo later revises a historical close, `run` prints a drift warning (checked
   against the primary σ, baseline, Δσ and every term-structure leg) and
-  `python volmon.py rebuild` recomputes the whole series from source.
+  `python vallmon.py rebuild` recomputes the whole series from source.
 - **Partial bars:** `run`/`rebuild` executed during London trading hours capture
   an incomplete current-day bar; the scheduled 18:00 UTC run avoids this.
 
@@ -96,10 +96,10 @@ the same adaptive behavior as the baseline.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python volmon.py run       # fetch + append + print the latest reading
-python volmon.py rebuild   # recompute the whole series from source (overwrites CSV)
-python volmon.py history   # recent readings with a trend sparkline
-python volmon.py report    # regenerate the "Current reading" section above
+python vallmon.py run       # fetch + append + print the latest reading
+python vallmon.py rebuild   # recompute the whole series from source (overwrites CSV)
+python vallmon.py history   # recent readings with a trend sparkline
+python vallmon.py report    # regenerate the "Current reading" section above
 ```
 
 ### Development
@@ -111,7 +111,7 @@ ruff check . && mypy && python -m pytest   # from the repository root
 
 ### Scheduled (GitHub Actions)
 
-`.github/workflows/volmon.yml` runs weekdays at 18:00 UTC (after the London
+`.github/workflows/vallmon.yml` runs weekdays at 18:00 UTC (after the London
 close). It appends the day's reading to `data/delta_sigma.csv`, regenerates this
 report, and commits both back to the repository. Enable it by pushing the repo
 to GitHub; runs can also be triggered manually from the Actions tab. Pushes and
@@ -122,12 +122,12 @@ only runs on the schedule or a manual dispatch.
 
 | Path | Purpose |
 |------|---------|
-| `volmon.py` | fetch -> clean -> compute -> append -> report |
+| `vallmon.py` | fetch -> clean -> compute -> append -> report |
 | `data/delta_sigma.csv` | append-only metric log (Δσ, daily volume, term-structure σ) |
 | `README.md` | this file; the report section is auto-updated |
 | `REPORT.md` | full auto-generated report (summary + full history) |
-| `tests/test_volmon.py` | unit tests for the metric, fetch, persistence and CLI |
-| `.github/workflows/volmon.yml` | daily scheduler + lint/type-check/test job |
+| `tests/test_vallmon.py` | unit tests for the metric, fetch, persistence and CLI |
+| `.github/workflows/vallmon.yml` | daily scheduler + lint/type-check/test job |
 | `requirements.txt` | runtime dependencies (`tzdata`) |
 | `requirements-dev.txt` | development dependencies (pytest, ruff, mypy) |
 | `pyproject.toml` | ruff / mypy / pytest configuration |

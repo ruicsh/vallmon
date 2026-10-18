@@ -469,7 +469,7 @@ def cmd_run(ci=False):
         print(
             "warning: %d stored value(s) across %d reading(s) differ from a fresh "
             "recompute; source prices may have been revised. "
-            "Run `python volmon.py rebuild` to reconcile." % (len(drifted), affected),
+            "Run `python vallmon.py rebuild` to reconcile." % (len(drifted), affected),
             file=sys.stderr,
         )
         for date, field, stored_value, fresh_value in drifted[:5]:
@@ -550,7 +550,7 @@ def cmd_history(limit):
         return 2
     rows = sorted_rows()
     if not rows:
-        print("No readings yet; run `python volmon.py run` first.")
+        print("No readings yet; run `python vallmon.py run` first.")
         return 0
     recent = rows[-limit:]
     print("VALL Rolling Variance Delta - last %d readings\n" % len(recent))
@@ -697,7 +697,7 @@ def build_report(rows):
 def cmd_report():
     rows = sorted_rows()
     if not rows:
-        print("No readings yet; run `python volmon.py run` first.", file=sys.stderr)
+        print("No readings yet; run `python vallmon.py run` first.", file=sys.stderr)
         return 1
 
     if not README_PATH.exists():

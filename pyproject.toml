@@ -1,5 +1,5 @@
 # Developer tooling. The runtime itself is pure standard library - see
-# requirements.txt; nothing here is imported by volmon.py.
+# requirements.txt; nothing here is imported by vallmon.py.
 
 [tool.ruff]
 line-length = 100
@@ -9,10 +9,10 @@ target-version = "py39"
 select = ["E", "F", "I", "B"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["volmon"]
+known-first-party = ["vallmon"]
 
 [tool.mypy]
-files = ["volmon.py"]
+files = ["vallmon.py"]
 python_version = "3.9"
 warn_unused_ignores = true
 warn_redundant_casts = true
