@@ -3,3 +3,9 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+
+# atomic-write scratch file (data/delta_sigma.csv.tmp)
+*.tmp
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
