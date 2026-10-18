@@ -44,10 +44,13 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 CSV_PATH = DATA_DIR / "delta_sigma.csv"
 README_PATH = ROOT / "README.md"
+REPORT_PATH = ROOT / "REPORT.md"
 
 REPORT_START = "<!-- REPORT:START -->"
 REPORT_END = "<!-- REPORT:END -->"
-REPORT_ROWS = 30
+
+SPARK_WIDTH = 60   # sparkline length in the full report
+README_SPARK = 30  # sparkline length in the README summary
 
 CSV_FIELDS = ["date", "close", "sigma_annualized", "baseline_mean", "delta_sigma"]
 
@@ -258,24 +261,28 @@ def cmd_history(limit):
     return 0
 
 
-def build_report_section(rows):
+def summary_lines(rows):
     latest = rows[-1]
-    delta = float(latest["delta_sigma"])
-    lines = [
-        "**Latest:** delta_sigma = **%.2f** -> %s  *(%s)*" % (delta, regime(delta), latest["date"]),
-        "",
-        "%.2f%% current vol (W=%d) vs %.2f%% trailing baseline (N<=%d)."
-        % (
-            float(latest["sigma_annualized"]) * 100,
-            WINDOW,
-            float(latest["baseline_mean"]) * 100,
-            BASELINE,
-        ),
-        "",
-        "| Date | Close (GBp) | sigma current (ann.) | Baseline mu | delta_sigma | Regime |",
-        "|------|-------------|----------------------|-------------|-------------|--------|",
+    deltas = [float(row["delta_sigma"]) for row in rows]
+    delta = deltas[-1]
+    return [
+        "| Metric | Value |",
+        "|--------|-------|",
+        "| Latest Δσ | %.2f %s (%s) |" % (delta, regime(delta), latest["date"]),
+        "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
+        "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
+        "| Δσ min / max / median | %.2f / %.2f / %.2f |"
+        % (min(deltas), max(deltas), statistics.median(deltas)),
+        "| Readings | %d |" % len(rows),
     ]
-    for row in rows[-REPORT_ROWS:][::-1]:
+
+
+def history_table(rows):
+    lines = [
+        "| Date | Close (GBp) | σ current (ann.) | Baseline μ | Δσ | Regime |",
+        "|------|-------------|------------------|------------|-----|--------|",
+    ]
+    for row in reversed(rows):
         value = float(row["delta_sigma"])
         lines.append(
             "| %s | %.3f | %.2f%% | %.2f%% | %.2f | %s |"
@@ -288,6 +295,53 @@ def build_report_section(rows):
                 regime(value),
             )
         )
+    return lines
+
+
+def build_readme_section(rows):
+    latest = rows[-1]
+    deltas = [float(row["delta_sigma"]) for row in rows]
+    delta = deltas[-1]
+    return "\n".join(
+        [
+            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s"
+            % (
+                delta,
+                regime(delta),
+                float(latest["sigma_annualized"]) * 100,
+                float(latest["baseline_mean"]) * 100,
+                latest["date"],
+            ),
+            "",
+            "`%s` · [Full report →](REPORT.md)" % sparkline(deltas[-README_SPARK:]),
+        ]
+    )
+
+
+def build_report(rows):
+    latest = rows[-1]
+    deltas = [float(row["delta_sigma"]) for row in rows]
+    lines = [
+        "# VALL Rolling Variance Delta — Full Report",
+        "",
+        "_As of %s · %d readings · %s → %s_"
+        % (latest["date"], len(rows), rows[0]["date"], latest["date"]),
+        "",
+        "## Summary",
+        "",
+    ]
+    lines += summary_lines(rows)
+    lines += [
+        "",
+        "## Trend",
+        "",
+        "`%s`" % sparkline(deltas[-SPARK_WIDTH:]),
+        "",
+        "## Full history",
+        "",
+    ]
+    lines += history_table(rows)
+    lines += ["", "## Methodology", "", "See [README.md → Methodology](README.md#methodology)."]
     return "\n".join(lines)
 
 
@@ -296,6 +350,7 @@ def cmd_report():
     if not rows:
         print("No readings yet; run `python volmon.py run` first.", file=sys.stderr)
         return 1
+
     if not README_PATH.exists():
         print("README.md not found at %s" % README_PATH, file=sys.stderr)
         return 1
@@ -310,9 +365,15 @@ def cmd_report():
 
     head, remainder = text.split(REPORT_START, 1)
     _, tail = remainder.split(REPORT_END, 1)
-    new_text = "%s%s\n%s\n%s" % (head, REPORT_START, build_report_section(rows), REPORT_END + tail)
-    README_PATH.write_text(new_text)
-    print("Updated report section in %s (%d readings)." % (README_PATH.relative_to(ROOT), len(rows)))
+    README_PATH.write_text(
+        "%s%s\n%s\n%s" % (head, REPORT_START, build_readme_section(rows), REPORT_END + tail)
+    )
+    REPORT_PATH.write_text(build_report(rows) + "\n")
+
+    print(
+        "Updated %s (concise) and %s (full) - %d readings."
+        % (README_PATH.name, REPORT_PATH.name, len(rows))
+    )
     return 0
 
 
@@ -320,10 +381,22 @@ def write_step_summary(rows):
     path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not path:
         return
+    latest = rows[-1]
+    deltas = [float(row["delta_sigma"]) for row in rows]
+    delta = deltas[-1]
     with open(path, "a") as handle:
         handle.write("## VALL Rolling Variance Delta\n\n")
-        handle.write(build_report_section(rows))
-        handle.write("\n")
+        handle.write(
+            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s\n\n"
+            % (
+                delta,
+                regime(delta),
+                float(latest["sigma_annualized"]) * 100,
+                float(latest["baseline_mean"]) * 100,
+                latest["date"],
+            )
+        )
+        handle.write("`%s`\n" % sparkline(deltas[-SPARK_WIDTH:]))
 
 
 # --- Entry point ------------------------------------------------------------

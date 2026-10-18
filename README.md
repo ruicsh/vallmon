@@ -9,31 +9,9 @@ Global All-Cap UCITS ETF USD Acc (London Stock Exchange: `VALL.L`, ISIN
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Latest:** delta_sigma = **0.95** -> 🟢 normal  *(2026-10-16)*
+**Δσ = 0.95** 🟢 normal · 10.19% vol vs 10.77% baseline · 2026-10-16
 
-10.19% current vol (W=20) vs 10.77% trailing baseline (N<=90).
-
-| Date | Close (GBp) | sigma current (ann.) | Baseline mu | delta_sigma | Regime |
-|------|-------------|----------------------|-------------|-------------|--------|
-| 2026-10-16 | 3.699 | 10.19% | 10.77% | 0.95 | 🟢 normal |
-| 2026-10-15 | 3.719 | 10.26% | 10.79% | 0.95 | 🟢 normal |
-| 2026-10-14 | 3.752 | 10.32% | 10.82% | 0.95 | 🟢 normal |
-| 2026-10-13 | 3.754 | 10.56% | 10.84% | 0.97 | 🟢 normal |
-| 2026-10-12 | 3.774 | 10.56% | 10.86% | 0.97 | 🟢 normal |
-| 2026-10-09 | 3.764 | 10.87% | 10.86% | 1.00 | 🟢 normal |
-| 2026-10-08 | 3.749 | 11.05% | 10.84% | 1.02 | 🟢 normal |
-| 2026-10-07 | 3.765 | 11.03% | 10.82% | 1.02 | 🟢 normal |
-| 2026-10-06 | 3.792 | 11.19% | 10.79% | 1.04 | 🟢 normal |
-| 2026-10-05 | 3.779 | 11.20% | 10.75% | 1.04 | 🟢 normal |
-| 2026-10-02 | 3.754 | 11.01% | 10.72% | 1.03 | 🟢 normal |
-| 2026-10-01 | 3.716 | 10.37% | 10.77% | 0.96 | 🟢 normal |
-| 2026-09-30 | 3.740 | 10.31% | 10.83% | 0.95 | 🟢 normal |
-| 2026-09-29 | 3.740 | 10.36% | 10.91% | 0.95 | 🟢 normal |
-| 2026-09-28 | 3.736 | 11.21% | 10.85% | 1.03 | 🟢 normal |
-| 2026-09-25 | 3.764 | 11.09% | 10.79% | 1.03 | 🟢 normal |
-| 2026-09-24 | 3.745 | 10.99% | 10.72% | 1.03 | 🟢 normal |
-| 2026-09-23 | 3.768 | 10.70% | 10.73% | 1.00 | 🟢 normal |
-| 2026-09-22 | 3.770 | 10.79% | 10.67% | 1.01 | 🟢 normal |
+`▅▄▆▇▇▁▁▂▆█▇▆▆▅▂▃▁▁▁` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
 
 ## Methodology
@@ -100,5 +78,6 @@ to GitHub; runs can also be triggered manually from the Actions tab.
 | `volmon.py` | fetch -> clean -> compute -> append -> report |
 | `data/delta_sigma.csv` | append-only metric log |
 | `README.md` | this file; the report section is auto-updated |
+| `REPORT.md` | full auto-generated report (summary + full history) |
 | `.github/workflows/volmon.yml` | daily scheduler |
 | `requirements.txt` | runtime dependencies (`tzdata`) |
