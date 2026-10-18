@@ -2,14 +2,15 @@
 
 Monitors volatility expansion and compression in **VALL** - the Vanguard FTSE
 Global All-Cap UCITS ETF USD Acc (London Stock Exchange: `VALL.L`, ISIN
-`IE000VAHT5T0`) - using the Rolling Variance Delta metric.
+`IE000VAHT5T0`) - using the Rolling Variance Delta metric, alongside a
+short-vs-long volatility term structure (σ10/σ20/σ30/σ60).
 
 ## Current reading
 
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Δσ = 0.95** 🟢 normal · 10.19% vol vs 10.77% baseline · 7,137,211 units · 2026-10-16
+**Δσ = 0.95** 🟢 normal · 10.19% vol vs 10.77% baseline · 7,137,211 units · 2026-10-16 · TS σ10/σ30 0.84
 
 `▅▄▆▇▇▁▁▂▆█▇▆▆▅▂▃▁▁▁` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
@@ -43,6 +44,29 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 | 0.7 - 0.85 | compressing |
 | < 0.7 | compressed |
 
+### Volatility term structure
+
+The same realized-vol calculation is also evaluated over several windows -
+`W ∈ {10, 20, 30, 60}` trading days - to show the *shape* of the volatility
+curve. `W = 20` remains the primary window for Δσ; the other legs are
+supplementary.
+
+The headline term-structure signal is the **slope**:
+
+```
+slope = sigma_10 / sigma_30
+```
+
+- **> 1.05 -> backwardated:** short-term vol sits above longer-term vol, the
+  classic stress shape (short-dated uncertainty priced above the trend).
+- **0.95 - 1.05 -> flat:** the curve is broadly level.
+- **< 0.95 -> contango:** short-term vol is below longer-term vol, the calm
+  shape (recent markets quieter than the trailing window).
+
+A window only produces a value once that many trading days of returns exist, so
+the longer legs (30d, 60d) appear as an em dash until enough history accrues -
+the same adaptive behavior as the baseline.
+
 ### Data & caveats
 
 - **Source:** Yahoo Finance `VALL.L` daily closes (GBP). Rows with a null close
@@ -55,9 +79,11 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 - **Currency:** `VALL.L` trades in GBP, so delta_sigma includes some GBP/USD FX
   noise on top of pure equity volatility.
 - **Short history:** VALL's share class incepted on 18 Aug 2026, so early
-  readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027).
+  readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027);
+  the 60-day term-structure leg stays empty until ~mid-December 2026.
 - **Reproducibility:** each row is written once and never silently rewritten. If
-  Yahoo later revises a historical close, `run` prints a drift warning and
+  Yahoo later revises a historical close, `run` prints a drift warning (checked
+  against the primary σ, baseline, Δσ and every term-structure leg) and
   `python volmon.py rebuild` recomputes the whole series from source.
 - **Partial bars:** `run`/`rebuild` executed during London trading hours capture
   an incomplete current-day bar; the scheduled 18:00 UTC run avoids this.
@@ -97,7 +123,7 @@ only runs on the schedule or a manual dispatch.
 | Path | Purpose |
 |------|---------|
 | `volmon.py` | fetch -> clean -> compute -> append -> report |
-| `data/delta_sigma.csv` | append-only metric log (Δσ + daily volume) |
+| `data/delta_sigma.csv` | append-only metric log (Δσ, daily volume, term-structure σ) |
 | `README.md` | this file; the report section is auto-updated |
 | `REPORT.md` | full auto-generated report (summary + full history) |
 | `tests/test_volmon.py` | unit tests for the metric, fetch, persistence and CLI |
