@@ -128,6 +128,22 @@ def test_fetch_prices_gives_up_with_fetch_error(monkeypatch):
         vallmon.fetch_prices(attempts=2, backoff=0)
 
 
+def test_fetch_prices_requests_full_history(monkeypatch):
+    # `rebuild` overwrites the CSV from the fetch, so the request must cover the
+    # whole available series - a fixed lookback would truncate older readings.
+    seen = {}
+
+    def fake_urlopen(request, timeout=30):
+        seen["url"] = request.full_url
+        return _FakeResponse(json.dumps(_chart_payload([(1758172800, 3.71, 1000)])).encode())
+
+    monkeypatch.setattr(vallmon.urllib.request, "urlopen", fake_urlopen)
+    vallmon.fetch_prices()
+
+    assert "range=max" in seen["url"]
+    assert vallmon.TICKER in seen["url"]
+
+
 # --- metric -----------------------------------------------------------------
 
 def test_compute_rows_needs_at_least_two_prices():

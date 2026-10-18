@@ -88,9 +88,13 @@ CSV_FIELDS = [
 # with a fresh recompute is reported as drift (see find_drift).
 METRIC_FIELDS = ["sigma_annualized", "baseline_mean", "delta_sigma"] + TERM_FIELDS
 
+# Ask for the full available history rather than a fixed window. `run` merges
+# into the existing CSV but `rebuild` overwrites it, so a bounded lookback would
+# silently truncate readings older than the window once the series outgrows it.
+YAHOO_RANGE = "max"
 YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-    "?range=1y&interval=1d"
+    "?range={range_}&interval=1d"
 )
 USER_AGENT = os.environ.get("VALLMON_USER_AGENT", "Mozilla/5.0 (compatible; vallmon/1.0)")
 
@@ -154,13 +158,13 @@ def _parse_payload(payload):
     return prices
 
 
-def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
+def fetch_prices(range_=YAHOO_RANGE, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
     """Fetch and parse VALL.L daily closes and volumes, retrying transient failures.
 
     Network/timeout/parse errors are retried with exponential backoff; a
     response that Yahoo explicitly flags as an error is raised immediately.
     """
-    url = YAHOO_URL.format(ticker=TICKER)
+    url = YAHOO_URL.format(ticker=TICKER, range_=range_)
     last_error = None
     for attempt in range(1, attempts + 1):
         try:
