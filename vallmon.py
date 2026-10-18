@@ -397,6 +397,24 @@ def volume_display(row, with_units=False):
     return "%s units" % text if with_units else text
 
 
+def delta_series(rows):
+    """The Δσ value of every row, oldest first."""
+    return [float(row["delta_sigma"]) for row in rows]
+
+
+def reading_headline(row):
+    """One-line summary of a reading, shared by the README and CI surfaces."""
+    delta = float(row["delta_sigma"])
+    return "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s" % (
+        delta,
+        regime(delta),
+        float(row["sigma_annualized"]) * 100,
+        float(row["baseline_mean"]) * 100,
+        volume_display(row, with_units=True),
+        row["date"],
+    )
+
+
 def save_rows(rows_by_date):
     """Write the CSV atomically, so an interrupted run cannot corrupt it."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -409,6 +427,20 @@ def save_rows(rows_by_date):
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(tmp_path, CSV_PATH)
+
+
+def _write_text_atomic(path, text):
+    """Write text through a temp file + atomic replace, like `save_rows`.
+
+    Keeps an interrupted run from leaving a half-written README/REPORT behind,
+    reusing the same ``*.tmp`` scratch convention (already git-ignored).
+    """
+    tmp_path = path.with_name(path.name + ".tmp")
+    with tmp_path.open("w") as handle:
+        handle.write(text)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_path, path)
 
 
 def sorted_rows(rows_by_date=None):
@@ -580,7 +612,7 @@ def cmd_history(limit):
                 regime(delta),
             )
         )
-    deltas = [float(row["delta_sigma"]) for row in recent]
+    deltas = delta_series(recent)
     print("\n  trend  %s" % sparkline(deltas))
     print("         %.2f -> %.2f" % (deltas[0], deltas[-1]))
     return 0
@@ -588,7 +620,7 @@ def cmd_history(limit):
 
 def summary_lines(rows):
     latest = rows[-1]
-    deltas = [float(row["delta_sigma"]) for row in rows]
+    deltas = delta_series(rows)
     delta = deltas[-1]
     slope = term_slope(latest)
     return [
@@ -650,31 +682,20 @@ def history_table(rows):
 
 def build_readme_section(rows):
     latest = rows[-1]
-    deltas = [float(row["delta_sigma"]) for row in rows]
-    delta = deltas[-1]
     slope = term_slope(latest)
     trend = " · TS σ%d/σ%d %s" % (TERM_SHORT, TERM_LONG, slope_display(slope))
     return "\n".join(
         [
-            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s%s"
-            % (
-                delta,
-                regime(delta),
-                float(latest["sigma_annualized"]) * 100,
-                float(latest["baseline_mean"]) * 100,
-                volume_display(latest, with_units=True),
-                latest["date"],
-                trend,
-            ),
+            reading_headline(latest) + trend,
             "",
-            "`%s` · [Full report →](REPORT.md)" % sparkline(deltas[-README_SPARK:]),
+            "`%s` · [Full report →](REPORT.md)" % sparkline(delta_series(rows)[-README_SPARK:]),
         ]
     )
 
 
 def build_report(rows):
     latest = rows[-1]
-    deltas = [float(row["delta_sigma"]) for row in rows]
+    deltas = delta_series(rows)
     lines = [
         "# VALL Rolling Variance Delta — Full Report",
         "",
@@ -725,10 +746,11 @@ def cmd_report():
 
     head, remainder = text.split(REPORT_START, 1)
     _, tail = remainder.split(REPORT_END, 1)
-    README_PATH.write_text(
-        "%s%s\n%s\n%s" % (head, REPORT_START, build_readme_section(rows), REPORT_END + tail)
+    _write_text_atomic(
+        README_PATH,
+        "%s%s\n%s\n%s" % (head, REPORT_START, build_readme_section(rows), REPORT_END + tail),
     )
-    REPORT_PATH.write_text(build_report(rows) + "\n")
+    _write_text_atomic(REPORT_PATH, build_report(rows) + "\n")
 
     print(
         "Updated %s (concise) and %s (full) - %d readings."
@@ -770,23 +792,11 @@ def write_step_summary(rows):
     if not path:
         return
     latest = rows[-1]
-    deltas = [float(row["delta_sigma"]) for row in rows]
-    delta = deltas[-1]
     slope = term_slope(latest)
     with open(path, "a") as handle:
         handle.write("## VALL Rolling Variance Delta\n\n")
-        handle.write(
-            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s\n\n"
-            % (
-                delta,
-                regime(delta),
-                float(latest["sigma_annualized"]) * 100,
-                float(latest["baseline_mean"]) * 100,
-                volume_display(latest, with_units=True),
-                latest["date"],
-            )
-        )
-        handle.write("`%s`\n\n" % sparkline(deltas[-SPARK_WIDTH:]))
+        handle.write("%s\n\n" % reading_headline(latest))
+        handle.write("`%s`\n\n" % sparkline(delta_series(rows)[-SPARK_WIDTH:]))
         handle.write(
             "Volatility term structure (σ ann., %s d): %s\n\n"
             % ("/".join(str(w) for w in SIGMA_WINDOWS), term_structure_display(latest))

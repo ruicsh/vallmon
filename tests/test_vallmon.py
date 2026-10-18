@@ -241,10 +241,10 @@ def _rising_prices(n):
     ]
 
 
-def _term_formatted_row(sigma10=0.11, sigma30=0.10, sigma60=None):
+def _term_formatted_row(day="2026-01-02", sigma10=0.11, sigma30=0.10, sigma60=None):
     return vallmon._format(
         {
-            "date": "2026-01-02",
+            "date": day,
             "close": 3.71,
             "volume": 1000,
             "sigma_annualized": 0.10,
@@ -498,6 +498,25 @@ def test_find_drift_skips_unparseable_stored_values():
     assert vallmon.find_drift(stored, computed) == []
 
 
+def test_write_text_atomic_replaces_and_cleans_up(tmp_path):
+    path = tmp_path / "out.txt"
+    path.write_text("old")
+    vallmon._write_text_atomic(path, "hello")
+    assert path.read_text() == "hello"
+    assert not (tmp_path / "out.txt.tmp").exists()
+
+
+def test_reading_headline_matches_readme_and_step_summary(monkeypatch, tmp_path, capsys):
+    rows = vallmon.sorted_rows({"2026-01-02": _term_formatted_row()})
+    headline = vallmon.reading_headline(rows[-1])
+    assert headline in vallmon.build_readme_section(rows)
+
+    summary_path = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_path))
+    vallmon.write_step_summary(rows)
+    assert headline in summary_path.read_text()
+
+
 # --- commands ---------------------------------------------------------------
 
 def _seeded(tmp_path, monkeypatch, prices):
@@ -653,3 +672,77 @@ def test_main_history_rejects_nonpositive_limit(capsys):
 def test_main_requires_a_command():
     with pytest.raises(SystemExit):
         vallmon.main([])
+
+
+# --- report / history commands ----------------------------------------------
+
+def _seeded_report(tmp_path, monkeypatch):
+    monkeypatch.setattr(vallmon, "ROOT", tmp_path)
+    monkeypatch.setattr(vallmon, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
+    monkeypatch.setattr(vallmon, "README_PATH", tmp_path / "README.md")
+    monkeypatch.setattr(vallmon, "REPORT_PATH", tmp_path / "REPORT.md")
+
+
+def test_cmd_report_splices_the_marker_section(tmp_path, monkeypatch, capsys):
+    _seeded_report(tmp_path, monkeypatch)
+    vallmon.save_rows({"2026-01-02": _term_formatted_row()})
+    vallmon.README_PATH.write_text(
+        "# Title\n\n%s\nold content\n%s\n\nfooter\n"
+        % (vallmon.REPORT_START, vallmon.REPORT_END)
+    )
+
+    assert vallmon.cmd_report() == 0
+
+    readme = vallmon.README_PATH.read_text()
+    assert "old content" not in readme
+    assert "# Title" in readme and "footer" in readme     # surroundings preserved
+    assert vallmon.REPORT_START in readme and vallmon.REPORT_END in readme
+    assert "**Δσ = 1.00**" in readme
+    assert not (tmp_path / "README.md.tmp").exists()       # atomic write cleaned up
+
+    report = vallmon.REPORT_PATH.read_text()
+    assert "# VALL Rolling Variance Delta — Full Report" in report
+    assert "## Full history" in report
+    assert not (tmp_path / "REPORT.md.tmp").exists()
+    assert "1 readings" in capsys.readouterr().out
+
+
+def test_cmd_report_requires_markers(tmp_path, monkeypatch, capsys):
+    _seeded_report(tmp_path, monkeypatch)
+    vallmon.save_rows({"2026-01-02": _term_formatted_row()})
+    vallmon.README_PATH.write_text("# No markers here\n")
+
+    assert vallmon.cmd_report() == 1
+    assert "markers" in capsys.readouterr().err
+
+
+def test_cmd_report_without_readings_fails(tmp_path, monkeypatch, capsys):
+    _seeded_report(tmp_path, monkeypatch)  # no CSV on disk
+
+    assert vallmon.cmd_report() == 1
+    assert "No readings yet" in capsys.readouterr().err
+
+
+def test_cmd_history_prints_rows_and_trend(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
+    vallmon.save_rows(
+        {
+            "2026-01-02": _term_formatted_row(day="2026-01-02"),
+            "2026-01-03": _term_formatted_row(day="2026-01-03"),
+        }
+    )
+
+    assert vallmon.cmd_history(2) == 0
+    out = capsys.readouterr().out
+    assert "last 2 readings" in out
+    assert "2026-01-03" in out
+    assert "trend" in out
+
+
+def test_cmd_history_without_readings(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "nope.csv")
+
+    assert vallmon.cmd_history(5) == 0
+    assert "No readings yet" in capsys.readouterr().out
