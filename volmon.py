@@ -55,7 +55,14 @@ REPORT_END = "<!-- REPORT:END -->"
 SPARK_WIDTH = 60   # sparkline length in the full report
 README_SPARK = 30  # sparkline length in the README summary
 
-CSV_FIELDS = ["date", "close", "sigma_annualized", "baseline_mean", "delta_sigma"]
+CSV_FIELDS = [
+    "date",
+    "close",
+    "volume",
+    "sigma_annualized",
+    "baseline_mean",
+    "delta_sigma",
+]
 
 YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
@@ -80,8 +87,9 @@ class FetchError(RuntimeError):
 
 
 def _parse_payload(payload):
-    """Turn a Yahoo Finance chart payload into a sorted [(iso_date, close)] list.
+    """Turn a Yahoo Finance chart payload into a sorted [(iso_date, close, volume)] list.
 
+    Volume is the number of ETF units traded that session on the exchange.
     Rows with a null close or zero volume are discarded. Yahoo emits a couple
     of zero-volume placeholder bars at the start of a new listing which would
     otherwise corrupt the returns series. Malformed payloads raise FetchError
@@ -116,14 +124,14 @@ def _parse_payload(payload):
         if close is None or volume is None or volume == 0:
             continue
         day = datetime.fromtimestamp(ts, tz=tz).date().isoformat()
-        prices.append((day, float(close)))
+        prices.append((day, float(close), int(volume)))
 
     prices.sort(key=lambda row: row[0])
     return prices
 
 
 def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
-    """Fetch and parse VALL.L daily closes, retrying transient failures.
+    """Fetch and parse VALL.L daily closes and volumes, retrying transient failures.
 
     Network/timeout/parse errors are retried with exponential backoff; a
     response that Yahoo explicitly flags as an error is raised immediately.
@@ -156,15 +164,16 @@ def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
 # --- Metric -----------------------------------------------------------------
 
 def compute_rows(prices):
-    """Compute the full delta-sigma series from a list of (date, close).
+    """Compute the full delta-sigma series from a list of (date, close, volume).
 
     Returns a list of dicts with float values, oldest first.
     """
     if len(prices) < 2:
         return []
 
-    days = [day for day, _ in prices]
-    closes = [close for _, close in prices]
+    days = [day for day, _, _ in prices]
+    closes = [close for _, close, _ in prices]
+    volumes = [volume for _, _, volume in prices]
     returns = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
 
     # Annualized realized volatility at each point we have a full window.
@@ -188,6 +197,7 @@ def compute_rows(prices):
             {
                 "date": days[price_idx],
                 "close": closes[price_idx],
+                "volume": volumes[price_idx],
                 "sigma_annualized": sigma,
                 "baseline_mean": baseline,
                 "delta_sigma": sigma / baseline,
@@ -232,10 +242,23 @@ def _format(row):
     return {
         "date": row["date"],
         "close": "%.4f" % row["close"],
+        "volume": "%d" % int(row["volume"]),
         "sigma_annualized": "%.6f" % row["sigma_annualized"],
         "baseline_mean": "%.6f" % row["baseline_mean"],
         "delta_sigma": "%.4f" % row["delta_sigma"],
     }
+
+
+def volume_display(row):
+    """Traded units as a grouped string, or an em dash when unknown.
+
+    Rows written before the volume column existed have no value until they are
+    backfilled by `run`/`rebuild`, so reports must tolerate a missing field.
+    """
+    raw = row.get("volume")
+    if not raw:
+        return "\u2014"
+    return "{:,}".format(int(float(raw)))
 
 
 def save_rows(rows_by_date):
@@ -246,7 +269,7 @@ def save_rows(rows_by_date):
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
         for day in sorted(rows_by_date):
-            writer.writerow({field: rows_by_date[day][field] for field in CSV_FIELDS})
+            writer.writerow({field: rows_by_date[day].get(field, "") for field in CSV_FIELDS})
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(tmp_path, CSV_PATH)
@@ -326,10 +349,17 @@ def cmd_run(ci=False):
             print("  ... and %d more" % (len(drifted) - 5), file=sys.stderr)
 
     added = 0
+    backfilled = 0
     for row in computed:
-        if row["date"] not in existing:
+        prior = existing.get(row["date"])
+        if prior is None:
             existing[row["date"]] = _format(row)
             added += 1
+        elif not prior.get("volume"):
+            # Reading is frozen, but the new volume column can be populated
+            # from the same source without touching the stored metric.
+            prior["volume"] = "%d" % int(row["volume"])
+            backfilled += 1
     save_rows(existing)
 
     rows = sorted_rows(existing)
@@ -340,6 +370,11 @@ def cmd_run(ci=False):
         "  (%d new reading%s written to %s)"
         % (added, "" if added == 1 else "s", CSV_PATH.relative_to(ROOT))
     )
+    if backfilled:
+        print(
+            "  (backfilled volume for %d existing reading%s)"
+            % (backfilled, "" if backfilled == 1 else "s")
+        )
 
     if ci:
         write_step_summary(rows)
@@ -350,6 +385,7 @@ def print_reading(row, delta):
     print("VALL Rolling Variance Delta - %s" % row["date"])
     print("  sigma current (W=%d, ann.)   %6.2f%%" % (WINDOW, float(row["sigma_annualized"]) * 100))
     print("  baseline mean  (N<=%d)       %6.2f%%" % (BASELINE, float(row["baseline_mean"]) * 100))
+    print("  volume (units, daily)       %12s" % volume_display(row))
     print("  delta_sigma                  %6.2f   -> %s" % (delta, regime(delta)))
 
 
@@ -363,14 +399,15 @@ def cmd_history(limit):
         return 0
     recent = rows[-limit:]
     print("VALL Rolling Variance Delta - last %d readings\n" % len(recent))
-    print("  date         close    sigma    base     d-sigma  regime")
+    print("  date         close       volume    sigma    base     d-sigma  regime")
     for row in recent:
         delta = float(row["delta_sigma"])
         print(
-            "  %s  %6.3f  %6.2f%%  %6.2f%%  %6.2f   %s"
+            "  %s  %6.3f  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
             % (
                 row["date"],
                 float(row["close"]),
+                volume_display(row),
                 float(row["sigma_annualized"]) * 100,
                 float(row["baseline_mean"]) * 100,
                 delta,
@@ -393,6 +430,7 @@ def summary_lines(rows):
         "| Latest Δσ | %.2f %s (%s) |" % (delta, regime(delta), latest["date"]),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
+        "| Latest volume | %s units |" % volume_display(latest),
         "| Δσ min / max / median | %.2f / %.2f / %.2f |"
         % (min(deltas), max(deltas), statistics.median(deltas)),
         "| Readings | %d |" % len(rows),
@@ -401,16 +439,17 @@ def summary_lines(rows):
 
 def history_table(rows):
     lines = [
-        "| Date | Close (GBP) | σ current (ann.) | Baseline μ | Δσ | Regime |",
-        "|------|-------------|------------------|------------|-----|--------|",
+        "| Date | Close (GBP) | Volume (units) | σ current (ann.) | Baseline μ | Δσ | Regime |",
+        "|------|-------------|----------------|------------------|------------|-----|--------|",
     ]
     for row in reversed(rows):
         value = float(row["delta_sigma"])
         lines.append(
-            "| %s | %.3f | %.2f%% | %.2f%% | %.2f | %s |"
+            "| %s | %.3f | %s | %.2f%% | %.2f%% | %.2f | %s |"
             % (
                 row["date"],
                 float(row["close"]),
+                volume_display(row),
                 float(row["sigma_annualized"]) * 100,
                 float(row["baseline_mean"]) * 100,
                 value,

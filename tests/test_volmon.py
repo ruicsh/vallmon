@@ -68,8 +68,14 @@ def test_parse_payload_filters_placeholders():
         ]
     )
     prices = volmon._parse_payload(payload)
-    assert [close for _, close in prices] == [3.71, 3.72]
+    assert [(close, volume) for _, close, volume in prices] == [(3.71, 1000), (3.72, 500)]
     assert prices == sorted(prices)
+
+
+def test_parse_payload_keeps_volume_as_int():
+    payload = _chart_payload([(1758172800, 3.71, 12345.0)])
+    (day, close, volume), = volmon._parse_payload(payload)
+    assert isinstance(volume, int) and volume == 12345
 
 
 def test_parse_payload_error_raises_fetch_error():
@@ -126,13 +132,13 @@ def test_fetch_prices_gives_up_with_fetch_error(monkeypatch):
 
 def test_compute_rows_needs_at_least_two_prices():
     assert volmon.compute_rows([]) == []
-    assert volmon.compute_rows([("2026-01-01", 100.0)]) == []
+    assert volmon.compute_rows([("2026-01-01", 100.0, 1000)]) == []
 
 
 def test_compute_rows_flat_series_yields_no_readings(monkeypatch):
     # Constant prices -> zero returns -> zero baseline, which is skipped.
     monkeypatch.setattr(volmon, "WINDOW", 3)
-    prices = [("2026-01-%02d" % (i + 1), 100.0) for i in range(6)]
+    prices = [("2026-01-%02d" % (i + 1), 100.0, 1000) for i in range(6)]
     assert volmon.compute_rows(prices) == []
 
 
@@ -141,15 +147,16 @@ def test_compute_rows_identical_windows_give_unit_delta(monkeypatch):
     # current sigma equals the single prior sigma and delta is exactly 1.
     monkeypatch.setattr(volmon, "WINDOW", 2)
     prices = [
-        ("2026-01-01", 100.0),
-        ("2026-01-02", 110.0),
-        ("2026-01-03", 99.0),
-        ("2026-01-04", 108.9),
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
     ]
     rows = volmon.compute_rows(prices)
     assert len(rows) == 1
     assert rows[0]["date"] == "2026-01-04"
     assert rows[0]["close"] == 108.9
+    assert rows[0]["volume"] == 4000
     assert rows[0]["delta_sigma"] == pytest.approx(1.0)
 
 
@@ -157,7 +164,10 @@ def test_compute_rows_matches_independent_reference(monkeypatch):
     monkeypatch.setattr(volmon, "WINDOW", 3)
     monkeypatch.setattr(volmon, "BASELINE", 2)
     closes = [100, 103, 99, 105, 101, 107, 102, 108]
-    prices = [("2026-01-%02d" % (i + 1), c) for i, c in enumerate(closes)]
+    volumes = [1000 * (i + 1) for i in range(len(closes))]
+    prices = [
+        ("2026-01-%02d" % (i + 1), c, volumes[i]) for i, c in enumerate(closes)
+    ]
 
     rows = volmon.compute_rows(prices)
     ref = _sigma_series(closes, window=3)
@@ -170,6 +180,7 @@ def test_compute_rows_matches_independent_reference(monkeypatch):
         assert row["sigma_annualized"] == pytest.approx(ref[indices[k]])
         assert row["baseline_mean"] == pytest.approx(baseline)
         assert row["delta_sigma"] == pytest.approx(ref[indices[k]] / baseline)
+        assert row["volume"] == volumes[indices[k]]
 
 
 @pytest.mark.parametrize(
@@ -213,6 +224,7 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
     row = {
         "date": "2026-01-02",
         "close": 3.71,
+        "volume": 12345,
         "sigma_annualized": 0.1,
         "baseline_mean": 0.09,
         "delta_sigma": 1.1,
@@ -221,6 +233,29 @@ def test_save_and_load_round_trip(tmp_path, monkeypatch):
 
     assert not (tmp_path / "delta_sigma.csv.tmp").exists()  # atomic write cleaned up
     assert volmon.load_rows() == {"2026-01-02": volmon._format(row)}
+
+
+def test_save_rows_tolerates_missing_volume(tmp_path, monkeypatch):
+    # Rows written before the volume column existed must not crash the writer.
+    monkeypatch.setattr(volmon, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(volmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
+
+    stale = {
+        "date": "2026-01-02",
+        "close": "3.7100",
+        "sigma_annualized": "0.100000",
+        "baseline_mean": "0.090000",
+        "delta_sigma": "1.1000",
+    }
+    volmon.save_rows({"2026-01-02": stale})
+    assert volmon.load_rows()["2026-01-02"]["volume"] == ""
+
+
+def test_volume_display_formats_and_tolerates_missing():
+    assert volmon.volume_display({"volume": "1234567"}) == "1,234,567"
+    assert volmon.volume_display({"volume": 42}) == "42"
+    assert volmon.volume_display({"volume": ""}) == "\u2014"
+    assert volmon.volume_display({}) == "\u2014"
 
 
 def test_load_rows_missing_file_returns_empty(tmp_path, monkeypatch):
@@ -251,11 +286,11 @@ def _seeded(tmp_path, monkeypatch, prices):
 
 def test_cmd_run_appends(monkeypatch, tmp_path, capsys):
     prices = [
-        ("2026-01-01", 100.0),
-        ("2026-01-02", 110.0),
-        ("2026-01-03", 99.0),
-        ("2026-01-04", 108.9),
-        ("2026-01-05", 100.0),
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
+        ("2026-01-05", 100.0, 5000),
     ]
     _seeded(tmp_path, monkeypatch, prices)
     monkeypatch.setattr(volmon, "WINDOW", 2)
@@ -265,13 +300,43 @@ def test_cmd_run_appends(monkeypatch, tmp_path, capsys):
     assert "2 new readings" in capsys.readouterr().out
 
 
+def test_cmd_run_backfills_volume_for_frozen_rows(monkeypatch, tmp_path, capsys):
+    prices = [
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
+        ("2026-01-05", 100.0, 5000),
+    ]
+    _seeded(tmp_path, monkeypatch, prices)
+    monkeypatch.setattr(volmon, "WINDOW", 2)
+
+    # Simulate a pre-volume CSV: a frozen reading with no volume column.
+    rows = {
+        "2026-01-04": {
+            "date": "2026-01-04",
+            "close": "108.9000",
+            "sigma_annualized": "0.100000",
+            "baseline_mean": "0.090000",
+            "delta_sigma": "1.1111",
+        }
+    }
+    volmon.save_rows(rows)
+
+    assert volmon.cmd_run() == 0
+    stored = volmon.load_rows()
+    assert stored["2026-01-04"]["volume"] == "4000"         # backfilled from source
+    assert stored["2026-01-04"]["delta_sigma"] == "1.1111"  # metric stayed frozen
+    assert "backfilled volume for 1 existing reading" in capsys.readouterr().out
+
+
 def test_cmd_run_warns_on_drift(monkeypatch, tmp_path, capsys):
     prices = [
-        ("2026-01-01", 100.0),
-        ("2026-01-02", 110.0),
-        ("2026-01-03", 99.0),
-        ("2026-01-04", 108.9),
-        ("2026-01-05", 100.0),
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
+        ("2026-01-05", 100.0, 5000),
     ]
     _seeded(tmp_path, monkeypatch, prices)
     monkeypatch.setattr(volmon, "WINDOW", 2)
@@ -300,11 +365,11 @@ def test_cmd_run_returns_error_on_fetch_failure(monkeypatch, capsys):
 
 def test_cmd_rebuild_overwrites(monkeypatch, tmp_path, capsys):
     prices = [
-        ("2026-01-01", 100.0),
-        ("2026-01-02", 110.0),
-        ("2026-01-03", 99.0),
-        ("2026-01-04", 108.9),
-        ("2026-01-05", 100.0),
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
+        ("2026-01-05", 100.0, 5000),
     ]
     _seeded(tmp_path, monkeypatch, prices)
     monkeypatch.setattr(volmon, "WINDOW", 2)
@@ -316,6 +381,7 @@ def test_cmd_rebuild_overwrites(monkeypatch, tmp_path, capsys):
                 {
                     "date": "1999-01-01",
                     "close": 1.0,
+                    "volume": 1,
                     "sigma_annualized": 1.0,
                     "baseline_mean": 1.0,
                     "delta_sigma": 1.0,
