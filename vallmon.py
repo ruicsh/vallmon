@@ -318,15 +318,23 @@ def sigma_field(window):
     return "sigma_annualized" if window == WINDOW else "sigma_%d" % window
 
 
-def sigma_value(row, window):
-    """Realized vol for `window` as a float, or None when absent/missing."""
-    raw = row.get(sigma_field(window))
+def _as_float(raw):
+    """Parse a stored numeric field, or None when absent/unparseable.
+
+    Values come from our own CSV, but a hand-edited or corrupted cell must
+    degrade to "unknown" rather than crash a run.
+    """
     if raw in (None, ""):
         return None
     try:
         return float(raw)
     except (TypeError, ValueError):
         return None
+
+
+def sigma_value(row, window):
+    """Realized vol for `window` as a float, or None when absent/missing."""
+    return _as_float(row.get(sigma_field(window)))
 
 
 def sigma_display(row, window):
@@ -424,10 +432,9 @@ def find_drift(stored, computed):
             continue
         for field in METRIC_FIELDS:
             value = row.get(field)
-            raw = prior.get(field)
-            if value is None or raw in (None, ""):
+            stored_value = _as_float(prior.get(field))
+            if value is None or stored_value is None:
                 continue
-            stored_value = float(raw)
             if abs(stored_value - value) > DRIFT_TOLERANCE:
                 drifted.append((row["date"], field, stored_value, value))
     return drifted

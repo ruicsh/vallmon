@@ -491,6 +491,13 @@ def test_find_drift_ignores_rounding_noise():
     assert vallmon.find_drift(stored, computed) == []
 
 
+def test_find_drift_skips_unparseable_stored_values():
+    # A hand-edited/corrupted cell must degrade to "unknown", not crash the run.
+    stored = {"2026-01-02": {"delta_sigma": "n/a", "baseline_mean": "0.09"}}
+    computed = [{"date": "2026-01-02", "delta_sigma": 1.0, "baseline_mean": 0.09}]
+    assert vallmon.find_drift(stored, computed) == []
+
+
 # --- commands ---------------------------------------------------------------
 
 def _seeded(tmp_path, monkeypatch, prices):
