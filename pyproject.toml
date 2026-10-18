@@ -1,0 +1,23 @@
+# Developer tooling. The runtime itself is pure standard library - see
+# requirements.txt; nothing here is imported by volmon.py.
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["volmon"]
+
+[tool.mypy]
+files = ["volmon.py"]
+python_version = "3.9"
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
