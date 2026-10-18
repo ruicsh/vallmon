@@ -18,7 +18,7 @@ _As of 2026-10-16 · 19 readings · 2026-09-22 → 2026-10-16_
 
 ## Full history
 
-| Date | Close (GBp) | σ current (ann.) | Baseline μ | Δσ | Regime |
+| Date | Close (GBP) | σ current (ann.) | Baseline μ | Δσ | Regime |
 |------|-------------|------------------|------------|-----|--------|
 | 2026-10-16 | 3.699 | 10.19% | 10.77% | 0.95 | 🟢 normal |
 | 2026-10-15 | 3.719 | 10.26% | 10.79% | 0.95 | 🟢 normal |

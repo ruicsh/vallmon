@@ -13,6 +13,7 @@ N-day baseline.
 
 Commands:
     run       fetch, compute, backfill/append to data/delta_sigma.csv, print
+    rebuild   fetch and recompute the whole series from scratch (overwrites CSV)
     history   show recent readings with a trend sparkline
     report    regenerate the "Current reading" section of README.md
 """
@@ -26,6 +27,8 @@ import math
 import os
 import statistics
 import sys
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -58,30 +61,54 @@ YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
     "?range=1y&interval=1d"
 )
-USER_AGENT = "Mozilla/5.0 (compatible; vallmon/1.0; +https://github.com)"
+USER_AGENT = os.environ.get("VALLMON_USER_AGENT", "Mozilla/5.0 (compatible; vallmon/1.0)")
+
+FETCH_ATTEMPTS = 3    # total tries per fetch (1 initial + retries)
+FETCH_BACKOFF = 2.0   # seconds before the first retry; doubles each retry
+
+# A stored reading that disagrees with a fresh recompute by more than this
+# (in delta_sigma units) is reported as drift - see cmd_run / cmd_rebuild.
+DRIFT_TOLERANCE = 1e-4
 
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
 
 # --- Data fetching ----------------------------------------------------------
 
-def fetch_prices():
-    """Return a sorted list of (iso_date, close) for real trading sessions.
+class FetchError(RuntimeError):
+    """Raised when price data cannot be fetched, retrieved or parsed."""
+
+
+def _parse_payload(payload):
+    """Turn a Yahoo Finance chart payload into a sorted [(iso_date, close)] list.
 
     Rows with a null close or zero volume are discarded. Yahoo emits a couple
     of zero-volume placeholder bars at the start of a new listing which would
-    otherwise corrupt the returns series.
+    otherwise corrupt the returns series. Malformed payloads raise FetchError
+    rather than surfacing as a raw KeyError/IndexError.
     """
-    url = YAHOO_URL.format(ticker=TICKER)
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        payload = json.load(response)
+    chart = payload.get("chart") or {}
+    error = chart.get("error")
+    if error:
+        raise FetchError("Yahoo Finance error: %s" % error)
 
-    result = payload["chart"]["result"][0]
-    timestamps = result["timestamp"]
-    quote = result["indicators"]["quote"][0]
-    closes = quote["close"]
-    volumes = quote["volume"]
+    results = chart.get("result")
+    if not results:
+        raise FetchError("Yahoo Finance returned no chart result")
+
+    result = results[0]
+    timestamps = result.get("timestamp") or []
+    quotes = (result.get("indicators") or {}).get("quote") or [{}]
+    quote = quotes[0]
+    closes = quote.get("close") or []
+    volumes = quote.get("volume") or []
+
+    if not len(timestamps) == len(closes) == len(volumes):
+        raise FetchError(
+            "Yahoo Finance returned ragged arrays "
+            "(timestamps=%d, closes=%d, volumes=%d)"
+            % (len(timestamps), len(closes), len(volumes))
+        )
 
     tz = ZoneInfo(EXCHANGE_TZ)
     prices = []
@@ -93,6 +120,37 @@ def fetch_prices():
 
     prices.sort(key=lambda row: row[0])
     return prices
+
+
+def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
+    """Fetch and parse VALL.L daily closes, retrying transient failures.
+
+    Network/timeout/parse errors are retried with exponential backoff; a
+    response that Yahoo explicitly flags as an error is raised immediately.
+    """
+    url = YAHOO_URL.format(ticker=TICKER)
+    last_error = None
+    for attempt in range(1, attempts + 1):
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.load(response)
+            return _parse_payload(payload)
+        except FetchError:
+            raise
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            last_error = exc
+            if attempt < attempts:
+                delay = backoff ** (attempt - 1)
+                print(
+                    "Fetch attempt %d/%d failed (%s); retrying in %.0fs"
+                    % (attempt, attempts, exc, delay),
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+    raise FetchError(
+        "failed to fetch %s after %d attempts: %s" % (TICKER, attempts, last_error)
+    )
 
 
 # --- Metric -----------------------------------------------------------------
@@ -110,6 +168,8 @@ def compute_rows(prices):
     returns = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
 
     # Annualized realized volatility at each point we have a full window.
+    # Sample standard deviation (n-1 denominator), the usual convention for
+    # realized volatility.
     sigmas = []  # (index_into_prices, sigma)
     for j in range(WINDOW - 1, len(returns)):
         window = returns[j - WINDOW + 1 : j + 1]
@@ -179,12 +239,17 @@ def _format(row):
 
 
 def save_rows(rows_by_date):
+    """Write the CSV atomically, so an interrupted run cannot corrupt it."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with CSV_PATH.open("w", newline="") as handle:
+    tmp_path = CSV_PATH.with_name(CSV_PATH.name + ".tmp")
+    with tmp_path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
         writer.writeheader()
         for day in sorted(rows_by_date):
             writer.writerow({field: rows_by_date[day][field] for field in CSV_FIELDS})
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_path, CSV_PATH)
 
 
 def sorted_rows(rows_by_date=None):
@@ -192,23 +257,74 @@ def sorted_rows(rows_by_date=None):
     return sorted(rows, key=lambda row: row["date"])
 
 
+def find_drift(stored, computed):
+    """Return [(date, stored_delta, computed_delta)] for stale rows.
+
+    Existing readings are frozen once written, so a later revision of the
+    source prices is not reflected. Comparing a fresh recompute against the
+    CSV lets `run` flag that without silently rewriting history.
+    """
+    drifted = []
+    for row in computed:
+        prior = stored.get(row["date"])
+        if prior is None:
+            continue
+        stored_delta = float(prior["delta_sigma"])
+        if abs(stored_delta - row["delta_sigma"]) > DRIFT_TOLERANCE:
+            drifted.append((row["date"], stored_delta, row["delta_sigma"]))
+    return drifted
+
+
 # --- Commands ---------------------------------------------------------------
 
-def cmd_run(ci=False):
+def _fetch_computed():
+    """Fetch prices and compute the full series.
+
+    Raises FetchError if the fetch fails; returns [] if there is not yet
+    enough history for a reading.
+    """
     prices = fetch_prices()
     if not prices:
-        print("No price data returned.", file=sys.stderr)
+        raise FetchError("no price data returned")
+    return compute_rows(prices)
+
+
+def _not_enough_history():
+    print(
+        "Not enough history yet to compute a reading "
+        "(need %d+ trading days)." % (WINDOW + 1)
+    )
+    return 0
+
+
+def cmd_run(ci=False):
+    try:
+        computed = _fetch_computed()
+    except FetchError as exc:
+        print("error: %s" % exc, file=sys.stderr)
         return 1
 
-    computed = compute_rows(prices)
     if not computed:
-        print(
-            "Not enough history yet to compute a reading "
-            "(need %d+ trading days)." % (WINDOW + 1)
-        )
-        return 0
+        return _not_enough_history()
 
     existing = load_rows()
+
+    drifted = find_drift(existing, computed)
+    if drifted:
+        print(
+            "warning: %d stored reading(s) differ from a fresh recompute; "
+            "source prices may have been revised. "
+            "Run `python volmon.py rebuild` to reconcile." % len(drifted),
+            file=sys.stderr,
+        )
+        for date, stored_delta, fresh_delta in drifted[:5]:
+            print(
+                "  %s: stored %.4f -> recomputed %.4f" % (date, stored_delta, fresh_delta),
+                file=sys.stderr,
+            )
+        if len(drifted) > 5:
+            print("  ... and %d more" % (len(drifted) - 5), file=sys.stderr)
+
     added = 0
     for row in computed:
         if row["date"] not in existing:
@@ -220,7 +336,10 @@ def cmd_run(ci=False):
     latest = rows[-1]
     delta = float(latest["delta_sigma"])
     print_reading(latest, delta)
-    print("  (%d new reading%s written to %s)" % (added, "" if added == 1 else "s", CSV_PATH.relative_to(ROOT)))
+    print(
+        "  (%d new reading%s written to %s)"
+        % (added, "" if added == 1 else "s", CSV_PATH.relative_to(ROOT))
+    )
 
     if ci:
         write_step_summary(rows)
@@ -235,6 +354,9 @@ def print_reading(row, delta):
 
 
 def cmd_history(limit):
+    if limit <= 0:
+        print("error: --limit must be a positive integer", file=sys.stderr)
+        return 2
     rows = sorted_rows()
     if not rows:
         print("No readings yet; run `python volmon.py run` first.")
@@ -279,7 +401,7 @@ def summary_lines(rows):
 
 def history_table(rows):
     lines = [
-        "| Date | Close (GBp) | σ current (ann.) | Baseline μ | Δσ | Regime |",
+        "| Date | Close (GBP) | σ current (ann.) | Baseline μ | Δσ | Regime |",
         "|------|-------------|------------------|------------|-----|--------|",
     ]
     for row in reversed(rows):
@@ -377,6 +499,34 @@ def cmd_report():
     return 0
 
 
+def cmd_rebuild(ci=False):
+    """Recompute the whole series from source prices and overwrite the CSV.
+
+    Unlike `run`, this does not preserve existing rows - it is the manual
+    escape hatch when source prices have been revised (see `run`'s drift
+    warning).
+    """
+    try:
+        computed = _fetch_computed()
+    except FetchError as exc:
+        print("error: %s" % exc, file=sys.stderr)
+        return 1
+
+    if not computed:
+        return _not_enough_history()
+
+    rows_by_date = {row["date"]: _format(row) for row in computed}
+    save_rows(rows_by_date)
+
+    rows = sorted_rows(rows_by_date)
+    print("Rebuilt %s from scratch - %d readings." % (CSV_PATH.relative_to(ROOT), len(rows)))
+    print_reading(rows[-1], float(rows[-1]["delta_sigma"]))
+
+    if ci:
+        write_step_summary(rows)
+    return 0
+
+
 def write_step_summary(rows):
     path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not path:
@@ -409,13 +559,24 @@ def main(argv=None):
     run_parser.add_argument("--ci", action="store_true", help="also write the GitHub step summary")
 
     history_parser = sub.add_parser("history", help="show recent readings")
-    history_parser.add_argument("-n", "--limit", type=int, default=30, help="number of readings (default 30)")
+    history_parser.add_argument(
+        "-n", "--limit", type=int, default=30, help="number of readings (default 30)"
+    )
 
     sub.add_parser("report", help="regenerate the README report section")
+
+    rebuild_parser = sub.add_parser(
+        "rebuild", help="recompute the whole series from source and overwrite the CSV"
+    )
+    rebuild_parser.add_argument(
+        "--ci", action="store_true", help="also write the GitHub step summary"
+    )
 
     args = parser.parse_args(argv)
     if args.command == "run":
         return cmd_run(ci=args.ci)
+    if args.command == "rebuild":
+        return cmd_rebuild(ci=args.ci)
     if args.command == "history":
         return cmd_history(args.limit)
     if args.command == "report":
