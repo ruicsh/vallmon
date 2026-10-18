@@ -9,7 +9,7 @@ Global All-Cap UCITS ETF USD Acc (London Stock Exchange: `VALL.L`, ISIN
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Δσ = 0.95** 🟢 normal · 10.19% vol vs 10.77% baseline · 2026-10-16
+**Δσ = 0.95** 🟢 normal · 10.19% vol vs 10.77% baseline · 7,137,211 units · 2026-10-16
 
 `▅▄▆▇▇▁▁▂▆█▇▆▆▅▂▃▁▁▁` · [Full report →](REPORT.md)
 <!-- REPORT:END -->

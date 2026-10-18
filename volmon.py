@@ -166,7 +166,9 @@ def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
 def compute_rows(prices):
     """Compute the full delta-sigma series from a list of (date, close, volume).
 
-    Returns a list of dicts with float values, oldest first.
+    Returns a list of dicts, oldest first. The metric fields (close,
+    sigma_annualized, baseline_mean, delta_sigma) are floats; volume is a unit
+    count stored as an int.
     """
     if len(prices) < 2:
         return []
@@ -249,16 +251,30 @@ def _format(row):
     }
 
 
-def volume_display(row):
-    """Traded units as a grouped string, or an em dash when unknown.
+def volume_units(row):
+    """Traded units as an int, or None when the value is missing/unparseable."""
+    raw = row.get("volume")
+    if not raw:
+        return None
+    try:
+        return int(float(str(raw).replace(",", "").strip()))
+    except (TypeError, ValueError):
+        return None
+
+
+def volume_display(row, with_units=False):
+    """Human-readable volume: grouped units, or an em dash when unknown.
 
     Rows written before the volume column existed have no value until they are
     backfilled by `run`/`rebuild`, so reports must tolerate a missing field.
+    With `with_units`, a known value gets a " units" suffix while an unknown
+    one stays a bare em dash.
     """
-    raw = row.get("volume")
-    if not raw:
+    units = volume_units(row)
+    if units is None:
         return "\u2014"
-    return "{:,}".format(int(float(raw)))
+    text = "{:,}".format(units)
+    return "%s units" % text if with_units else text
 
 
 def save_rows(rows_by_date):
@@ -430,7 +446,7 @@ def summary_lines(rows):
         "| Latest Δσ | %.2f %s (%s) |" % (delta, regime(delta), latest["date"]),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
-        "| Latest volume | %s units |" % volume_display(latest),
+        "| Latest volume | %s |" % volume_display(latest, with_units=True),
         "| Δσ min / max / median | %.2f / %.2f / %.2f |"
         % (min(deltas), max(deltas), statistics.median(deltas)),
         "| Readings | %d |" % len(rows),
@@ -465,12 +481,13 @@ def build_readme_section(rows):
     delta = deltas[-1]
     return "\n".join(
         [
-            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s"
+            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s"
             % (
                 delta,
                 regime(delta),
                 float(latest["sigma_annualized"]) * 100,
                 float(latest["baseline_mean"]) * 100,
+                volume_display(latest, with_units=True),
                 latest["date"],
             ),
             "",
@@ -576,12 +593,13 @@ def write_step_summary(rows):
     with open(path, "a") as handle:
         handle.write("## VALL Rolling Variance Delta\n\n")
         handle.write(
-            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s\n\n"
+            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s\n\n"
             % (
                 delta,
                 regime(delta),
                 float(latest["sigma_annualized"]) * 100,
                 float(latest["baseline_mean"]) * 100,
+                volume_display(latest, with_units=True),
                 latest["date"],
             )
         )

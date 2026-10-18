@@ -251,11 +251,59 @@ def test_save_rows_tolerates_missing_volume(tmp_path, monkeypatch):
     assert volmon.load_rows()["2026-01-02"]["volume"] == ""
 
 
+def test_volume_units_parses_and_tolerates_missing():
+    assert volmon.volume_units({"volume": "1234567"}) == 1234567
+    assert volmon.volume_units({"volume": 42}) == 42
+    assert volmon.volume_units({"volume": "1,234,567"}) == 1234567
+    assert volmon.volume_units({"volume": " 42 "}) == 42
+    assert volmon.volume_units({"volume": ""}) is None
+    assert volmon.volume_units({"volume": "n/a"}) is None
+    assert volmon.volume_units({}) is None
+
+
 def test_volume_display_formats_and_tolerates_missing():
     assert volmon.volume_display({"volume": "1234567"}) == "1,234,567"
     assert volmon.volume_display({"volume": 42}) == "42"
+    assert volmon.volume_display({"volume": "1,234,567"}) == "1,234,567"
     assert volmon.volume_display({"volume": ""}) == "\u2014"
     assert volmon.volume_display({}) == "\u2014"
+    assert volmon.volume_display({"volume": 7137211}, with_units=True) == "7,137,211 units"
+    assert volmon.volume_display({}, with_units=True) == "\u2014"
+
+
+def _formatted_row(volume=None):
+    row = {
+        "date": "2026-01-02",
+        "close": 3.71,
+        "sigma_annualized": 0.1,
+        "baseline_mean": 0.09,
+        "delta_sigma": 1.1,
+    }
+    if volume is not None:
+        row["volume"] = volume
+        return volmon._format(row)
+    # Simulate a row written before the volume column existed.
+    return {
+        "date": row["date"],
+        "close": "%.4f" % row["close"],
+        "sigma_annualized": "%.6f" % row["sigma_annualized"],
+        "baseline_mean": "%.6f" % row["baseline_mean"],
+        "delta_sigma": "%.4f" % row["delta_sigma"],
+    }
+
+
+def test_summary_lines_show_units_or_bare_dash():
+    known = volmon.summary_lines(volmon.sorted_rows({"2026-01-02": _formatted_row(7137211)}))
+    assert "| Latest volume | 7,137,211 units |" in known
+
+    unknown = volmon.summary_lines(volmon.sorted_rows({"2026-01-02": _formatted_row()}))
+    assert "| Latest volume | \u2014 |" in unknown
+
+
+def test_build_readme_section_includes_units():
+    rows = volmon.sorted_rows({"2026-01-02": _formatted_row(7137211)})
+    section = volmon.build_readme_section(rows)
+    assert "7,137,211 units" in section
 
 
 def test_load_rows_missing_file_returns_empty(tmp_path, monkeypatch):
