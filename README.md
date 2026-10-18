@@ -47,6 +47,11 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 
 - **Source:** Yahoo Finance `VALL.L` daily closes (GBP). Rows with a null close
   or zero volume (new-listing placeholders) are dropped.
+- **Volume:** each row also records that day's traded volume in ETF units
+  (Yahoo's `volume` field) as context for the reading. It is *not* part of the
+  Δσ metric, and it is a unit count, not a cash amount - turnover is roughly
+  `volume × close`. Rows written before the column existed are backfilled from
+  source the next time `run`/`rebuild` executes.
 - **Currency:** `VALL.L` trades in GBP, so delta_sigma includes some GBP/USD FX
   noise on top of pure equity volatility.
 - **Short history:** VALL's share class incepted on 18 Aug 2026, so early
@@ -92,7 +97,7 @@ only runs on the schedule or a manual dispatch.
 | Path | Purpose |
 |------|---------|
 | `volmon.py` | fetch -> clean -> compute -> append -> report |
-| `data/delta_sigma.csv` | append-only metric log |
+| `data/delta_sigma.csv` | append-only metric log (Δσ + daily volume) |
 | `README.md` | this file; the report section is auto-updated |
 | `REPORT.md` | full auto-generated report (summary + full history) |
 | `tests/test_volmon.py` | unit tests for the metric, fetch, persistence and CLI |
