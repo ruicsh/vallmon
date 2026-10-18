@@ -11,6 +11,9 @@ where `sigma_current` is annualized realized volatility over a short window W
 and `mu_sigma` is the trailing mean of that volatility profile over an adaptive
 N-day baseline.
 
+It also reports a volatility term structure: realized vol at 10/20/30/60 trading
+days, plus the slope sigma_10 / sigma_30 (backwardated vs contango).
+
 Commands:
     run       fetch, compute, backfill/append to data/delta_sigma.csv, print
     rebuild   fetch and recompute the whole series from scratch (overwrites CSV)
@@ -43,6 +46,19 @@ TRADING_DAYS_PER_YEAR = 252
 WINDOW = 20     # W: short realized-vol window, in trading days
 BASELINE = 90   # N: max baseline window, in trading days (adaptive below this)
 
+# Windows (in trading days) for the volatility term structure, shortest first.
+# WINDOW (20d) is the primary/Δσ window; the others are supplementary. A window
+# only produces a value once that many trading days of returns exist, so the
+# longer legs simply stay empty until enough history has accrued.
+SIGMA_WINDOWS = [10, 20, 30, 60]
+TERM_SHORT = 10  # numerator window for the term-structure slope
+TERM_LONG = 30   # denominator window for the term-structure slope
+
+# Every term-structure window except the primary one. This is the single source
+# of truth for both the persisted CSV columns and the per-row computation, so
+# the two can never drift apart.
+SUPPLEMENTARY_WINDOWS = [w for w in SIGMA_WINDOWS if w != WINDOW]
+
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 CSV_PATH = DATA_DIR / "delta_sigma.csv"
@@ -55,6 +71,10 @@ REPORT_END = "<!-- REPORT:END -->"
 SPARK_WIDTH = 60   # sparkline length in the full report
 README_SPARK = 30  # sparkline length in the README summary
 
+# Supplementary term-structure columns: the primary window keeps its historical
+# name (`sigma_annualized`).
+TERM_FIELDS = ["sigma_%d" % w for w in SUPPLEMENTARY_WINDOWS]
+
 CSV_FIELDS = [
     "date",
     "close",
@@ -62,7 +82,11 @@ CSV_FIELDS = [
     "sigma_annualized",
     "baseline_mean",
     "delta_sigma",
-]
+] + TERM_FIELDS
+
+# Fields recomputed from source on every reading. A stored value that disagrees
+# with a fresh recompute is reported as drift (see find_drift).
+METRIC_FIELDS = ["sigma_annualized", "baseline_mean", "delta_sigma"] + TERM_FIELDS
 
 YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
@@ -163,12 +187,29 @@ def fetch_prices(attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
 
 # --- Metric -----------------------------------------------------------------
 
+def _sigma_series(returns, window):
+    """Annualized realized vol at each price index with a full `window` of returns.
+
+    Returns {price_index: sigma}, indexed the same way as the price list (a
+    value at index i is the sigma of the window of returns ending at price i).
+    Sample standard deviation (n-1 denominator), the usual convention for
+    realized volatility.
+    """
+    sigmas = {}
+    for j in range(window - 1, len(returns)):
+        chunk = returns[j - window + 1 : j + 1]
+        sigmas[j + 1] = statistics.stdev(chunk) * math.sqrt(TRADING_DAYS_PER_YEAR)
+    return sigmas
+
+
 def compute_rows(prices):
     """Compute the full delta-sigma series from a list of (date, close, volume).
 
     Returns a list of dicts, oldest first. The metric fields (close,
-    sigma_annualized, baseline_mean, delta_sigma) are floats; volume is a unit
-    count stored as an int.
+    sigma_annualized, baseline_mean, delta_sigma and the supplementary
+    term-structure sigmas) are floats; volume is a unit count stored as an int.
+    A term-structure sigma is absent (None) for a date that does not yet have a
+    full window of returns.
     """
     if len(prices) < 2:
         return []
@@ -178,33 +219,35 @@ def compute_rows(prices):
     volumes = [volume for _, _, volume in prices]
     returns = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
 
-    # Annualized realized volatility at each point we have a full window.
-    # Sample standard deviation (n-1 denominator), the usual convention for
-    # realized volatility.
-    sigmas = []  # (index_into_prices, sigma)
-    for j in range(WINDOW - 1, len(returns)):
-        window = returns[j - WINDOW + 1 : j + 1]
-        sigma = statistics.stdev(window) * math.sqrt(TRADING_DAYS_PER_YEAR)
-        sigmas.append((j + 1, sigma))
+    # Annualized realized vol per window: {window: {price_index: sigma}}.
+    # Rows are keyed on the primary WINDOW so the set of readings (and thus the
+    # Δσ series) is unchanged by the supplementary windows.
+    windows = sorted(set(SIGMA_WINDOWS) | {WINDOW})
+    sigmas = {w: _sigma_series(returns, w) for w in windows}
+    primary = sigmas[WINDOW]
+    primary_indices = sorted(primary)
+    primary_values = [primary[i] for i in primary_indices]
 
     rows = []
-    for k in range(1, len(sigmas)):
-        price_idx, sigma = sigmas[k]
-        prior = [value for _, value in sigmas[:k]]
+    for k in range(1, len(primary_values)):
+        price_idx = primary_indices[k]
+        sigma = primary_values[k]
+        prior = primary_values[:k]
         n_base = min(BASELINE, len(prior))
         baseline = statistics.fmean(prior[-n_base:])
         if baseline <= 0:
             continue
-        rows.append(
-            {
-                "date": days[price_idx],
-                "close": closes[price_idx],
-                "volume": volumes[price_idx],
-                "sigma_annualized": sigma,
-                "baseline_mean": baseline,
-                "delta_sigma": sigma / baseline,
-            }
-        )
+        row = {
+            "date": days[price_idx],
+            "close": closes[price_idx],
+            "volume": volumes[price_idx],
+            "sigma_annualized": sigma,
+            "baseline_mean": baseline,
+            "delta_sigma": sigma / baseline,
+        }
+        for window in SUPPLEMENTARY_WINDOWS:
+            row["sigma_%d" % window] = sigmas[window].get(price_idx)
+        rows.append(row)
     return rows
 
 
@@ -241,7 +284,7 @@ def load_rows():
 
 
 def _format(row):
-    return {
+    formatted = {
         "date": row["date"],
         "close": "%.4f" % row["close"],
         "volume": "%d" % int(row["volume"]),
@@ -249,6 +292,10 @@ def _format(row):
         "baseline_mean": "%.6f" % row["baseline_mean"],
         "delta_sigma": "%.4f" % row["delta_sigma"],
     }
+    for field in TERM_FIELDS:
+        value = row.get(field)
+        formatted[field] = "" if value is None else "%.6f" % value
+    return formatted
 
 
 def volume_units(row):
@@ -260,6 +307,67 @@ def volume_units(row):
         return int(float(str(raw).replace(",", "").strip()))
     except (TypeError, ValueError):
         return None
+
+
+def sigma_field(window):
+    """CSV column holding the realized vol for `window` trading days."""
+    return "sigma_annualized" if window == WINDOW else "sigma_%d" % window
+
+
+def sigma_value(row, window):
+    """Realized vol for `window` as a float, or None when absent/missing."""
+    raw = row.get(sigma_field(window))
+    if raw in (None, ""):
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def sigma_display(row, window):
+    """Annualized sigma as a percentage string, or an em dash when unavailable."""
+    value = sigma_value(row, window)
+    return "\u2014" if value is None else "%.2f%%" % (value * 100)
+
+
+def term_structure_display(row):
+    """Compact per-window sigma row, e.g. ``11.02% / 10.19% / — / —``."""
+    return " / ".join(sigma_display(row, window) for window in SIGMA_WINDOWS)
+
+
+def term_slope(row):
+    """σ_short / σ_long (10d/30d), or None when either leg is unavailable.
+
+    A value above 1 means the short leg is above the long leg (an
+    inverted/backwardated curve, the classic stress shape); below 1 is the
+    normal, calm shape. A missing leg or a zero long leg (undefined ratio)
+    yields None; a genuinely flat short leg (0.0) is a valid reading.
+    """
+    short = sigma_value(row, TERM_SHORT)
+    long_ = sigma_value(row, TERM_LONG)
+    if short is None or long_ is None or long_ == 0:
+        return None
+    return short / long_
+
+
+def term_slope_label(slope):
+    if slope is None:
+        return "n/a"
+    if slope >= 1.05:
+        return "backwardated"
+    if slope <= 0.95:
+        return "contango"
+    return "flat"
+
+
+def slope_display(slope):
+    """Format a precomputed slope, or an em dash when unavailable."""
+    return "\u2014" if slope is None else "%.2f" % slope
+
+
+def term_slope_display(row):
+    return slope_display(term_slope(row))
 
 
 def volume_display(row, with_units=False):
@@ -297,20 +405,27 @@ def sorted_rows(rows_by_date=None):
 
 
 def find_drift(stored, computed):
-    """Return [(date, stored_delta, computed_delta)] for stale rows.
+    """Return [(date, field, stored_value, computed_value)] for stale readings.
 
     Existing readings are frozen once written, so a later revision of the
     source prices is not reflected. Comparing a fresh recompute against the
-    CSV lets `run` flag that without silently rewriting history.
+    CSV lets `run` flag that without silently rewriting history. Fields that
+    have not been captured yet (an empty/missing column) are skipped - there is
+    nothing to compare against.
     """
     drifted = []
     for row in computed:
         prior = stored.get(row["date"])
         if prior is None:
             continue
-        stored_delta = float(prior["delta_sigma"])
-        if abs(stored_delta - row["delta_sigma"]) > DRIFT_TOLERANCE:
-            drifted.append((row["date"], stored_delta, row["delta_sigma"]))
+        for field in METRIC_FIELDS:
+            value = row.get(field)
+            raw = prior.get(field)
+            if value is None or raw in (None, ""):
+                continue
+            stored_value = float(raw)
+            if abs(stored_value - value) > DRIFT_TOLERANCE:
+                drifted.append((row["date"], field, stored_value, value))
     return drifted
 
 
@@ -350,15 +465,17 @@ def cmd_run(ci=False):
 
     drifted = find_drift(existing, computed)
     if drifted:
+        affected = len({entry[0] for entry in drifted})
         print(
-            "warning: %d stored reading(s) differ from a fresh recompute; "
-            "source prices may have been revised. "
-            "Run `python volmon.py rebuild` to reconcile." % len(drifted),
+            "warning: %d stored value(s) across %d reading(s) differ from a fresh "
+            "recompute; source prices may have been revised. "
+            "Run `python volmon.py rebuild` to reconcile." % (len(drifted), affected),
             file=sys.stderr,
         )
-        for date, stored_delta, fresh_delta in drifted[:5]:
+        for date, field, stored_value, fresh_value in drifted[:5]:
             print(
-                "  %s: stored %.4f -> recomputed %.4f" % (date, stored_delta, fresh_delta),
+                "  %s %s: stored %.6f -> recomputed %.6f"
+                % (date, field, stored_value, fresh_value),
                 file=sys.stderr,
             )
         if len(drifted) > 5:
@@ -366,16 +483,28 @@ def cmd_run(ci=False):
 
     added = 0
     backfilled = 0
+    migrated = 0
     for row in computed:
         prior = existing.get(row["date"])
         if prior is None:
             existing[row["date"]] = _format(row)
             added += 1
-        elif not prior.get("volume"):
+            continue
+        if not prior.get("volume"):
             # Reading is frozen, but the new volume column can be populated
             # from the same source without touching the stored metric.
             prior["volume"] = "%d" % int(row["volume"])
             backfilled += 1
+        # One-time migration for metric columns added after this row was first
+        # written. There is no prior value to be stale against, so filling the
+        # gap is safe; once present the value is frozen and drift-checked.
+        row_migrated = False
+        for field in TERM_FIELDS:
+            if not prior.get(field) and row.get(field) is not None:
+                prior[field] = "%.6f" % row[field]
+                row_migrated = True
+        if row_migrated:
+            migrated += 1
     save_rows(existing)
 
     rows = sorted_rows(existing)
@@ -391,6 +520,11 @@ def cmd_run(ci=False):
             "  (backfilled volume for %d existing reading%s)"
             % (backfilled, "" if backfilled == 1 else "s")
         )
+    if migrated:
+        print(
+            "  (backfilled term structure for %d existing reading%s)"
+            % (migrated, "" if migrated == 1 else "s")
+        )
 
     if ci:
         write_step_summary(rows)
@@ -398,10 +532,15 @@ def cmd_run(ci=False):
 
 
 def print_reading(row, delta):
+    slope = term_slope(row)
     print("VALL Rolling Variance Delta - %s" % row["date"])
     print("  sigma current (W=%d, ann.)   %6.2f%%" % (WINDOW, float(row["sigma_annualized"]) * 100))
     print("  baseline mean  (N<=%d)       %6.2f%%" % (BASELINE, float(row["baseline_mean"]) * 100))
     print("  volume (units, daily)       %12s" % volume_display(row))
+    print("  term structure (%s)   %s"
+          % ("/".join(str(w) for w in SIGMA_WINDOWS), term_structure_display(row)))
+    print("  term slope (s%d/s%d)          %6s   -> %s"
+          % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope)))
     print("  delta_sigma                  %6.2f   -> %s" % (delta, regime(delta)))
 
 
@@ -440,12 +579,15 @@ def summary_lines(rows):
     latest = rows[-1]
     deltas = [float(row["delta_sigma"]) for row in rows]
     delta = deltas[-1]
+    slope = term_slope(latest)
     return [
         "| Metric | Value |",
         "|--------|-------|",
         "| Latest Δσ | %.2f %s (%s) |" % (delta, regime(delta), latest["date"]),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
+        "| Term slope σ%d/σ%d | %s (%s) |"
+        % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope)),
         "| Latest volume | %s |" % volume_display(latest, with_units=True),
         "| Δσ min / max / median | %.2f / %.2f / %.2f |"
         % (min(deltas), max(deltas), statistics.median(deltas)),
@@ -453,10 +595,30 @@ def summary_lines(rows):
     ]
 
 
+def term_structure_lines(rows):
+    """Latest-day σ per window, the headline slope and its sparkline."""
+    latest = rows[-1]
+    lines = ["| Window | σ (ann.) |", "|--------|----------|"]
+    for window in SIGMA_WINDOWS:
+        lines.append("| %dd | %s |" % (window, sigma_display(latest, window)))
+
+    slope = term_slope(latest)
+    lines += [
+        "",
+        "**Term slope σ%d/σ%d: %s (%s)**"
+        % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope)),
+    ]
+    slope_series = [s for s in (term_slope(row) for row in rows) if s is not None]
+    if slope_series:
+        lines += ["", "`%s`" % sparkline(slope_series[-SPARK_WIDTH:])]
+    return lines
+
+
 def history_table(rows):
     lines = [
-        "| Date | Close (GBP) | Volume (units) | σ current (ann.) | Baseline μ | Δσ | Regime |",
-        "|------|-------------|----------------|------------------|------------|-----|--------|",
+        "| Date | Close (GBP) | Volume (units) | σ %dd (ann.) | Baseline μ | Δσ | Regime |"
+        % WINDOW,
+        "|------|-------------|----------------|-----------------|------------|-----|--------|",
     ]
     for row in reversed(rows):
         value = float(row["delta_sigma"])
@@ -479,9 +641,11 @@ def build_readme_section(rows):
     latest = rows[-1]
     deltas = [float(row["delta_sigma"]) for row in rows]
     delta = deltas[-1]
+    slope = term_slope(latest)
+    trend = " · TS σ%d/σ%d %s" % (TERM_SHORT, TERM_LONG, slope_display(slope))
     return "\n".join(
         [
-            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s"
+            "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s%s"
             % (
                 delta,
                 regime(delta),
@@ -489,6 +653,7 @@ def build_readme_section(rows):
                 float(latest["baseline_mean"]) * 100,
                 volume_display(latest, with_units=True),
                 latest["date"],
+                trend,
             ),
             "",
             "`%s` · [Full report →](REPORT.md)" % sparkline(deltas[-README_SPARK:]),
@@ -514,6 +679,12 @@ def build_report(rows):
         "## Trend",
         "",
         "`%s`" % sparkline(deltas[-SPARK_WIDTH:]),
+        "",
+        "## Volatility term structure",
+        "",
+    ]
+    lines += term_structure_lines(rows)
+    lines += [
         "",
         "## Full history",
         "",
@@ -590,6 +761,7 @@ def write_step_summary(rows):
     latest = rows[-1]
     deltas = [float(row["delta_sigma"]) for row in rows]
     delta = deltas[-1]
+    slope = term_slope(latest)
     with open(path, "a") as handle:
         handle.write("## VALL Rolling Variance Delta\n\n")
         handle.write(
@@ -603,7 +775,15 @@ def write_step_summary(rows):
                 latest["date"],
             )
         )
-        handle.write("`%s`\n" % sparkline(deltas[-SPARK_WIDTH:]))
+        handle.write("`%s`\n\n" % sparkline(deltas[-SPARK_WIDTH:]))
+        handle.write(
+            "Volatility term structure (σ ann., %s d): %s\n\n"
+            % ("/".join(str(w) for w in SIGMA_WINDOWS), term_structure_display(latest))
+        )
+        handle.write(
+            "Term slope σ%d/σ%d: %s (%s)\n"
+            % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope))
+        )
 
 
 # --- Entry point ------------------------------------------------------------

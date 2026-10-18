@@ -215,6 +215,144 @@ def test_sparkline_maps_low_and_high():
     assert line[1] == volmon.SPARK_CHARS[-1]
 
 
+# --- term structure ---------------------------------------------------------
+
+def _rising_prices(n):
+    """A deterministic close series long enough to exercise several windows."""
+    return [
+        ("d%03d" % i, float(100 + i + (i % 3)), 1000 + i)
+        for i in range(n)
+    ]
+
+
+def _term_formatted_row(sigma10=0.11, sigma30=0.10, sigma60=None):
+    return volmon._format(
+        {
+            "date": "2026-01-02",
+            "close": 3.71,
+            "volume": 1000,
+            "sigma_annualized": 0.10,
+            "baseline_mean": 0.10,
+            "delta_sigma": 1.0,
+            "sigma_10": sigma10,
+            "sigma_30": sigma30,
+            "sigma_60": sigma60,
+        }
+    )
+
+
+def test_sigma_series_matches_reference():
+    closes = [100 + i + (i % 5) for i in range(30)]
+    returns = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
+    sigmas = volmon._sigma_series(returns, 10)
+    ref = _sigma_series(closes, window=10)
+    assert sigmas == ref
+
+
+def test_compute_rows_populates_available_windows_only():
+    rows = volmon.compute_rows(_rising_prices(35))
+    assert rows
+    # 10d and 20d are available for every reading; 60d is not (only 35 closes).
+    assert all(row["sigma_10"] is not None for row in rows)
+    assert all(row["sigma_60"] is None for row in rows)
+    # 30d fills in only once 30 closes precede the date.
+    assert rows[0]["sigma_30"] is None
+    assert rows[-1]["sigma_30"] is not None
+
+
+def test_compute_rows_term_sigmas_match_reference():
+    prices = _rising_prices(35)
+    closes = [c for _, c, _ in prices]
+    rows = volmon.compute_rows(prices)
+    ref10 = _sigma_series(closes, window=10)
+    ref30 = _sigma_series(closes, window=30)
+    for row in rows:
+        idx = int(row["date"][1:])
+        assert row["sigma_10"] == pytest.approx(ref10[idx])
+        if idx in ref30:
+            assert row["sigma_30"] == pytest.approx(ref30[idx])
+        else:
+            assert row["sigma_30"] is None
+
+
+def test_sigma_value_and_display():
+    row = {"sigma_annualized": "0.1019", "sigma_10": "0.1102", "sigma_30": "", "sigma_60": None}
+    assert volmon.sigma_value(row, 20) == pytest.approx(0.1019)
+    assert volmon.sigma_value(row, 10) == pytest.approx(0.1102)
+    assert volmon.sigma_value(row, 30) is None
+    assert volmon.sigma_value(row, 60) is None
+    assert volmon.sigma_display(row, 10) == "11.02%"
+    assert volmon.sigma_display(row, 30) == "\u2014"
+
+
+def test_term_structure_display_lists_every_window():
+    row = {"sigma_annualized": 0.1019, "sigma_10": 0.1102, "sigma_30": 0.10, "sigma_60": ""}
+    assert volmon.term_structure_display(row) == "11.02% / 10.19% / 10.00% / \u2014"
+
+
+def test_term_slope_and_label():
+    assert volmon.term_slope({"sigma_10": 0.12, "sigma_30": 0.10}) == pytest.approx(1.2)
+    assert volmon.term_slope_label(1.2) == "backwardated"
+    assert volmon.term_slope_label(1.0) == "flat"
+    assert volmon.term_slope_label(0.8) == "contango"
+    assert volmon.term_slope_label(None) == "n/a"
+    assert volmon.term_slope({"sigma_10": 0.12}) is None
+    assert volmon.term_slope({"sigma_30": 0.12}) is None
+    assert volmon.term_slope({"sigma_10": "", "sigma_30": 0.1}) is None
+    assert volmon.term_slope({"sigma_10": 0.1, "sigma_30": 0.0}) is None  # undefined ratio
+    assert volmon.term_slope({"sigma_10": 0.0, "sigma_30": 0.1}) == 0.0   # valid flat short leg
+    assert volmon.term_slope_display({}) == "\u2014"
+    assert volmon.slope_display(None) == "\u2014"
+    assert volmon.slope_display(0.0) == "0.00"
+
+
+def test_format_blanks_missing_term_windows():
+    row = {
+        "date": "2026-01-02",
+        "close": 3.71,
+        "volume": 10,
+        "sigma_annualized": 0.1,
+        "baseline_mean": 0.09,
+        "delta_sigma": 1.1,
+        "sigma_10": 0.11,
+        "sigma_30": None,
+    }
+    formatted = volmon._format(row)
+    assert formatted["sigma_10"] == "0.110000"
+    assert formatted["sigma_30"] == ""
+    assert formatted["sigma_60"] == ""
+
+
+def test_term_structure_lines_render():
+    rows = volmon.sorted_rows({"2026-01-02": _term_formatted_row()})
+    text = "\n".join(volmon.term_structure_lines(rows))
+    assert "| Window | σ (ann.) |" in text
+    assert "| 10d | 11.00% |" in text
+    assert "| 60d | \u2014 |" in text
+    assert "Term slope σ10/σ30: 1.10 (backwardated)" in text
+
+
+def test_build_readme_section_includes_term_slope():
+    rows = volmon.sorted_rows({"2026-01-02": _term_formatted_row()})
+    section = volmon.build_readme_section(rows)
+    assert "TS σ10/σ30 1.10" in section
+
+
+def test_build_readme_section_shows_dash_when_slope_unavailable():
+    row = _term_formatted_row(sigma10=None, sigma30=None)
+    rows = volmon.sorted_rows({"2026-01-02": row})
+    assert "TS σ10/σ30 \u2014" in volmon.build_readme_section(rows)
+
+
+def test_compute_rows_emits_declared_csv_fields():
+    # Locks the compute_rows schema to CSV_FIELDS so the persisted columns and
+    # the computed row can never drift apart.
+    rows = volmon.compute_rows(_rising_prices(35))
+    assert rows
+    for row in rows:
+        assert set(row) == set(volmon.CSV_FIELDS)
+
+
 # --- persistence ------------------------------------------------------------
 
 def test_save_and_load_round_trip(tmp_path, monkeypatch):
@@ -314,7 +452,21 @@ def test_load_rows_missing_file_returns_empty(tmp_path, monkeypatch):
 def test_find_drift_flags_revisions():
     stored = {"2026-01-02": {"delta_sigma": "1.0000"}}
     computed = [{"date": "2026-01-02", "delta_sigma": 1.05}]
-    assert volmon.find_drift(stored, computed) == [("2026-01-02", 1.0, 1.05)]
+    assert volmon.find_drift(stored, computed) == [("2026-01-02", "delta_sigma", 1.0, 1.05)]
+
+
+def test_find_drift_flags_term_structure_revisions():
+    stored = {"2026-01-02": {"delta_sigma": "1.0000", "sigma_30": "0.100000"}}
+    computed = [{"date": "2026-01-02", "delta_sigma": 1.0, "sigma_30": 0.12}]
+    assert volmon.find_drift(stored, computed) == [("2026-01-02", "sigma_30", 0.1, 0.12)]
+
+
+def test_find_drift_skips_uncaptured_fields():
+    # A row written before the term-structure columns existed has nothing to
+    # compare against, so it must not be reported as drift.
+    stored = {"2026-01-02": {"delta_sigma": "1.0000", "sigma_30": ""}}
+    computed = [{"date": "2026-01-02", "delta_sigma": 1.0, "sigma_30": 0.12}]
+    assert volmon.find_drift(stored, computed) == []
 
 
 def test_find_drift_ignores_rounding_noise():
@@ -376,6 +528,32 @@ def test_cmd_run_backfills_volume_for_frozen_rows(monkeypatch, tmp_path, capsys)
     assert stored["2026-01-04"]["volume"] == "4000"         # backfilled from source
     assert stored["2026-01-04"]["delta_sigma"] == "1.1111"  # metric stayed frozen
     assert "backfilled volume for 1 existing reading" in capsys.readouterr().out
+
+
+def test_cmd_run_backfills_term_structure(monkeypatch, tmp_path, capsys):
+    _seeded(tmp_path, monkeypatch, _rising_prices(35))
+
+    # Simulate a CSV written before the term-structure columns existed.
+    volmon.save_rows(
+        {
+            "d034": {
+                "date": "d034",
+                "close": "132.0000",
+                "volume": "1034",
+                "sigma_annualized": "0.000000",
+                "baseline_mean": "0.000000",
+                "delta_sigma": "1.0000",
+            }
+        }
+    )
+
+    assert volmon.cmd_run() == 0
+    stored = volmon.load_rows()["d034"]
+    assert stored["sigma_10"]                                  # populated
+    assert stored["sigma_30"]                                  # populated (35 closes)
+    assert stored["sigma_60"] == ""                            # 60d still unavailable
+    assert stored["delta_sigma"] == "1.0000"                   # metric stayed frozen
+    assert "backfilled term structure for 1 existing reading" in capsys.readouterr().out
 
 
 def test_cmd_run_warns_on_drift(monkeypatch, tmp_path, capsys):
