@@ -1,0 +1,7 @@
+# Runtime dependencies for vallmon.
+#
+# The tool itself is pure standard library; the only external piece is the
+# IANA time-zone database used by zoneinfo. It is present on macOS and most
+# Linux systems, but shipping `tzdata` keeps behaviour identical everywhere
+# (including slim CI images and Windows).
+tzdata>=2024.1
