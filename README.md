@@ -25,7 +25,8 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 
 1. **Daily log returns:** `r_t = ln(P_t / P_{t-1})`
 2. **Current volatility:** `sigma_t = stdev(r_{t-W+1 .. t}) * sqrt(252)` -
-   annualized realized volatility over `W = 20` trading days.
+   annualized realized volatility over `W = 20` trading days (sample standard
+   deviation, i.e. the `n-1` denominator).
 3. **Baseline:** `mu = mean(sigma_{t-N .. t-1})` - the trailing mean of the
    volatility profile over `N = min(90, available)` days (adaptive; grows into a
    full 90-day baseline as history accrues).
@@ -50,6 +51,11 @@ delta_sigma = sigma_current / mu_sigma(t - N)
   noise on top of pure equity volatility.
 - **Short history:** VALL's share class incepted on 18 Aug 2026, so early
   readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027).
+- **Reproducibility:** each row is written once and never silently rewritten. If
+  Yahoo later revises a historical close, `run` prints a drift warning and
+  `python volmon.py rebuild` recomputes the whole series from source.
+- **Partial bars:** `run`/`rebuild` executed during London trading hours capture
+  an incomplete current-day bar; the scheduled 18:00 UTC run avoids this.
 
 ## Setup
 
@@ -60,8 +66,16 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 python volmon.py run       # fetch + append + print the latest reading
+python volmon.py rebuild   # recompute the whole series from source (overwrites CSV)
 python volmon.py history   # recent readings with a trend sparkline
 python volmon.py report    # regenerate the "Current reading" section above
+```
+
+### Development
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+ruff check . && mypy && python -m pytest   # from the repository root
 ```
 
 ### Scheduled (GitHub Actions)
@@ -69,7 +83,9 @@ python volmon.py report    # regenerate the "Current reading" section above
 `.github/workflows/volmon.yml` runs weekdays at 18:00 UTC (after the London
 close). It appends the day's reading to `data/delta_sigma.csv`, regenerates this
 report, and commits both back to the repository. Enable it by pushing the repo
-to GitHub; runs can also be triggered manually from the Actions tab.
+to GitHub; runs can also be triggered manually from the Actions tab. Pushes and
+pull requests additionally run a lint/type-check/test job; the data-update job
+only runs on the schedule or a manual dispatch.
 
 ## Files
 
@@ -79,5 +95,8 @@ to GitHub; runs can also be triggered manually from the Actions tab.
 | `data/delta_sigma.csv` | append-only metric log |
 | `README.md` | this file; the report section is auto-updated |
 | `REPORT.md` | full auto-generated report (summary + full history) |
-| `.github/workflows/volmon.yml` | daily scheduler |
+| `tests/test_volmon.py` | unit tests for the metric, fetch, persistence and CLI |
+| `.github/workflows/volmon.yml` | daily scheduler + lint/type-check/test job |
 | `requirements.txt` | runtime dependencies (`tzdata`) |
+| `requirements-dev.txt` | development dependencies (pytest, ruff, mypy) |
+| `pyproject.toml` | ruff / mypy / pytest configuration |
