@@ -80,11 +80,13 @@ the same adaptive behavior as the baseline.
   noise on top of pure equity volatility.
 - **Short history:** VALL's share class incepted on 18 Aug 2026, so early
   readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027);
-  the 60-day term-structure leg stays empty until ~mid-December 2026.
+  the 60-day term-structure leg stays empty until ~mid-November 2026.
 - **Reproducibility:** each row is written once and never silently rewritten. If
   Yahoo later revises a historical close, `run` prints a drift warning (checked
   against the primary σ, baseline, Δσ and every term-structure leg) and
-  `python vallmon.py rebuild` recomputes the whole series from source.
+  `python vallmon.py rebuild` recomputes the whole series from source. The fetch
+  requests the full available history (`range=max`), so `rebuild` can never
+  truncate readings that have aged past a fixed lookback window.
 - **Partial bars:** `run`/`rebuild` executed during London trading hours capture
   an incomplete current-day bar; the scheduled 18:00 UTC run avoids this.
 
