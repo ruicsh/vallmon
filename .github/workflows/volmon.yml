@@ -5,13 +5,46 @@ on:
     # 18:00 UTC on weekdays - safely after the London close (year-round).
     - cron: "0 18 * * 1-5"
   workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions:
   contents: write
 
+# Serialise runs per ref so two updates can never race on the same commit.
+concurrency:
+  group: vallmon-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  update:
+  test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Type-check
+        run: mypy
+
+      - name: Test
+        run: python -m pytest -q
+
+  update:
+    needs: test
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
