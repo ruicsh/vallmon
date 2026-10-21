@@ -1,40 +1,41 @@
 # VALL Rolling Variance Delta — Full Report
 
-_As of 2026-10-20 · 40 readings · 2026-08-25 → 2026-10-20_
+_As of 2026-10-21 · 41 readings · 2026-08-25 → 2026-10-21_
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Latest Δσ | 1.37 🟠 expanding (2026-10-20) |
-| Current σ (W=20, ann.) | 4.72% |
-| Baseline μ (N≤90) | 3.44% |
-| Term slope σ10/σ30 | 0.89 (contango) |
-| Latest volume | 2,060,775 units |
+| Latest Δσ | 1.28 🟠 expanding (2026-10-21) |
+| Current σ (W=20, ann.) | 4.28% |
+| Baseline μ (N≤90) | 3.35% |
+| Term slope σ10/σ30 | 1.29 (backwardated) |
+| Latest volume | 1,557,220 units |
 | Δσ min / max / median | 0.39 / 2.78 / 1.01 |
-| Readings | 40 |
+| Readings | 41 |
 
 ## Trend
 
-`▂▂▂▂▂█▆▄▁▁▁▁▂▃▃▃▂▁▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▄▃`
+`▂▂▂▂▂█▆▄▁▁▁▁▂▃▃▃▂▁▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▄▃▃`
 
 ## Volatility term structure
 
 | Window | σ (ann.) |
 |--------|----------|
-| 10d | 4.80% |
-| 20d | 4.72% |
-| 30d | 5.39% |
-| 60d | 4.14% |
+| 10d | 5.62% |
+| 20d | 4.28% |
+| 30d | 4.36% |
+| 60d | 4.26% |
 
-**Term slope σ10/σ30: 0.89 (contango)**
+**Term slope σ10/σ30: 1.29 (backwardated)**
 
-`▃▂▂▃▄▂▁▁▂▂▃▃▃▂▂▁▂▃█▇▆▆▆▅▆▇▆▂▂▂▂▂▂▂▂▂▂▁▂`
+`▃▂▂▃▄▂▁▁▂▂▃▃▃▂▂▁▂▃█▇▆▆▆▅▆▇▆▂▂▂▂▂▂▂▂▂▂▁▂▃`
 
 ## Full history
 
 | Date | Close (GBP) | Volume (units) | σ 20d (ann.) | Baseline μ | Δσ | Regime |
 |------|-------------|----------------|-----------------|------------|-----|--------|
+| 2026-10-21 | 3.691 | 1,557,220 | 4.28% | 3.35% | 1.28 | 🟠 expanding |
 | 2026-10-20 | 3.675 | 2,060,775 | 4.72% | 3.44% | 1.37 | 🟠 expanding |
 | 2026-10-19 | 3.693 | 871,615 | 5.81% | 3.45% | 1.68 | 🔴 elevated |
 | 2026-10-16 | 3.699 | 7,137,211 | 10.19% | 10.77% | 0.95 | 🟢 normal |

@@ -10,9 +10,9 @@ short-vs-long volatility term structure (σ10/σ20/σ30/σ60).
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Δσ = 1.37** 🟠 expanding · 4.72% vol vs 3.44% baseline · 2,060,775 units · 2026-10-20 · TS σ10/σ30 0.89
+**Δσ = 1.28** 🟠 expanding · 4.28% vol vs 3.35% baseline · 1,557,220 units · 2026-10-21 · TS σ10/σ30 1.29
 
-`▁▁▃▆▆▅▃▂▄▄▄▄▄▄▃▄▄▄▄▄▄▄▄▄▄▄▃▃█▆` · [Full report →](REPORT.md)
+`▁▂▆▅▅▃▁▄▃▃▃▄▄▃▃▃▃▄▄▃▃▃▃▃▃▃▃█▆▅` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
 
 ## Methodology
