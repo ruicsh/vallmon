@@ -154,6 +154,7 @@ data-update job only runs on the schedule or a manual dispatch.
 | `data/delta_sigma.csv`          | append-only metric log (Δσ, daily volume, switch state, term-structure σ) |
 | `README.md`                     | this file; the findings section is auto-updated                           |
 | `docs/methodology.md`           | how the metrics are computed and what they mean                           |
+| `docs/backtest.md`              | recorded backtests across global, regional and long-history proxies       |
 | `tests/test_vallmon.py`         | unit tests for the metric, fetch, persistence and CLI                     |
 | `.github/workflows/vallmon.yml` | daily scheduler + lint/type-check/test job                                |
 | `requirements.txt`              | runtime dependencies (`tzdata`)                                           |

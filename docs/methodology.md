@@ -103,9 +103,11 @@ the monitor actually said. `rebuild` preserves the recorded state for the same
 reason; pass `--reset-switch` if you deliberately want it re-derived under the
 current thresholds.
 
-`python vallmon.py backtest VT --years 18` replays the same rule over any
+`python vallmon.py backtest VT --years 20` replays the same rule over any
 long-history Yahoo symbol and summarises the cash episodes it would have
-produced. It is read-only and never touches the ticker's CSV.
+produced. It is read-only and never touches the ticker's CSV. Recorded runs
+across global, regional and long-history proxies are in
+[backtest.md](backtest.md).
 
 The peak window is ~3 years, so until that much history exists the rule is
 running on a partial window - the report states how many readings it has seen.
