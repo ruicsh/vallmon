@@ -905,17 +905,22 @@ def day_image(change):
 
 
 def day_display(change):
-    """Emoji-prefixed change, or an em dash when unknown (terminal output)."""
+    """Change followed by its emoji marker (terminal output).
+
+    The marker trails the value so it lands in a fixed column: the numeric
+    columns are right-aligned, so a leading marker would shift with the width
+    of the number.
+    """
     if change is None:
         return "\u2014"
-    return "%s %+.2f%%" % (day_marker(change), change * 100)
+    return "%+.2f%% %s" % (change * 100, day_marker(change))
 
 
 def day_markdown(change):
-    """Image-prefixed change, or an em dash when unknown (README output)."""
+    """Change followed by its SVG marker (README output)."""
     if change is None:
         return "\u2014"
-    return "%s %+.2f%%" % (day_image(change), change * 100)
+    return "%+.2f%% %s" % (change * 100, day_image(change))
 
 
 def daily_change_series(rows):
