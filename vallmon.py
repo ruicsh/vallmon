@@ -158,6 +158,24 @@ FETCH_BACKOFF = 2.0   # seconds before the first retry; doubles each retry
 # (in delta_sigma units) is reported as drift - see cmd_run / cmd_rebuild.
 DRIFT_TOLERANCE = 1e-4
 
+# Volatility labels describe dispersion, not direction, and nothing acts on
+# them - so unlike the switch state they are derived context rather than a
+# recorded signal. A later change to the bands or the confirmation window is
+# therefore allowed to re-render history.
+#
+# A band must be held for VOLATILITY_CONFIRM readings before the label moves.
+# Without that, one quiet or busy session drags delta_sigma across a band edge
+# and the label flips, implying a change in conditions that did not happen.
+VOLATILITY_CONFIRM = 3
+
+VOLATILITY_BANDS = (
+    (1.5, "elevated", "\U0001F534"),      # red circle
+    (1.15, "expanding", "\U0001F7E0"),    # orange circle
+    (0.85, "normal", "\U0001F7E2"),       # green circle
+    (0.7, "compressing", "\U0001F535"),   # blue circle
+)
+VOLATILITY_COMPRESSED = ("compressed", "\u26AA")   # white circle
+
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
 
@@ -396,16 +414,56 @@ def compute_rows(prices):
     return rows
 
 
-def regime(delta):
-    if delta >= 1.5:
-        return "\U0001F534 elevated"      # red circle
-    if delta >= 1.15:
-        return "\U0001F7E0 expanding"     # orange circle
-    if delta >= 0.85:
-        return "\U0001F7E2 normal"        # green circle
-    if delta >= 0.7:
-        return "\U0001F535 compressing"   # blue circle
-    return "\u26AA compressed"            # white circle
+def volatility_band(delta):
+    """Index of the band `delta` falls in; len(VOLATILITY_BANDS) is compressed."""
+    for index, (threshold, _, _) in enumerate(VOLATILITY_BANDS):
+        if delta >= threshold:
+            return index
+    return len(VOLATILITY_BANDS)
+
+
+def band_label(index):
+    """The emoji + name for a band index."""
+    if index < len(VOLATILITY_BANDS):
+        _, name, dot = VOLATILITY_BANDS[index]
+    else:
+        name, dot = VOLATILITY_COMPRESSED
+    return "%s %s" % (dot, name)
+
+
+def volatility_label(delta):
+    """The label for a single reading, with no hysteresis."""
+    return band_label(volatility_band(delta))
+
+
+def volatility_labels(deltas, confirm=VOLATILITY_CONFIRM):
+    """Sticky labels for a delta_sigma series.
+
+    A band must hold for `confirm` consecutive readings before the label moves,
+    so ordinary day-to-day noise around a band edge cannot re-label the series.
+    The first reading sets the starting label.
+    """
+    if confirm < 1:
+        raise ValueError("confirm must be at least 1")
+    if not deltas:
+        return []
+    bands = [volatility_band(delta) for delta in deltas]
+    current = bands[0]
+    pending = None
+    streak = 0
+    labels = [band_label(current)]
+    for band in bands[1:]:
+        if band == current:
+            pending, streak = None, 0
+        else:
+            if band == pending:
+                streak += 1
+            else:
+                pending, streak = band, 1
+            if streak >= confirm:
+                current, pending, streak = band, None, 0
+        labels.append(band_label(current))
+    return labels
 
 
 # --- Drawdown ---------------------------------------------------------------
@@ -806,12 +864,12 @@ def delta_series(rows):
     return [float(row["delta_sigma"]) for row in rows]
 
 
-def reading_headline(row):
+def reading_headline(row, label=None):
     """One-line summary of a reading, shared by the README and CI surfaces."""
     delta = float(row["delta_sigma"])
     return "**Δσ = %.2f** %s · %.2f%% vol vs %.2f%% baseline · %s · %s" % (
         delta,
-        regime(delta),
+        label or volatility_label(delta),
         float(row["sigma_annualized"]) * 100,
         float(row["baseline_mean"]) * 100,
         volume_display(row, with_units=True),
@@ -967,7 +1025,7 @@ def cmd_run(ci=False, strict=False):
     rows = sorted_rows(existing)
     latest = rows[-1]
     delta = float(latest["delta_sigma"])
-    print_reading(latest, delta)
+    print_reading(latest, delta, volatility_labels(delta_series(rows))[-1])
     print_drawdown(rows)
     print(
         "  (%d new reading%s written to %s)"
@@ -989,7 +1047,7 @@ def cmd_run(ci=False, strict=False):
     return 0
 
 
-def print_reading(row, delta):
+def print_reading(row, delta, label=None):
     slope = term_slope(row)
     print("VALL Rolling Variance Delta - %s" % row["date"])
     print("  sigma current (W=%d, ann.)   %6.2f%%" % (WINDOW, float(row["sigma_annualized"]) * 100))
@@ -999,7 +1057,8 @@ def print_reading(row, delta):
           % ("/".join(str(w) for w in SIGMA_WINDOWS), term_structure_display(row)))
     print("  term slope (s%d/s%d)          %6s   -> %s"
           % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope)))
-    print("  delta_sigma                  %6.2f   -> %s" % (delta, regime(delta)))
+    print("  delta_sigma                  %6.2f   -> %s"
+          % (delta, label or volatility_label(delta)))
 
 
 def print_drawdown(rows):
@@ -1021,9 +1080,10 @@ def cmd_history(limit):
         print("No readings yet; run `python vallmon.py run` first.")
         return 0
     recent = rows[-limit:]
+    labels = volatility_labels(delta_series(rows))[-len(recent) :]
     print("VALL Rolling Variance Delta - last %d readings\n" % len(recent))
-    print("  date         close       volume    sigma    base     d-sigma  regime")
-    for row in recent:
+    print("  date         close       volume    sigma    base     d-sigma  volatility")
+    for row, label in zip(recent, labels):
         delta = float(row["delta_sigma"])
         print(
             "  %s  %6.3f  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
@@ -1034,7 +1094,7 @@ def cmd_history(limit):
                 float(row["sigma_annualized"]) * 100,
                 float(row["baseline_mean"]) * 100,
                 delta,
-                regime(delta),
+                label,
             )
         )
     deltas = delta_series(recent)
@@ -1271,7 +1331,7 @@ def summary_lines(rows):
     return [
         "| Metric | Value |",
         "|--------|-------|",
-        "| Δσ | %.2f %s |" % (delta, regime(delta)),
+        "| Δσ | %.2f %s |" % (delta, volatility_labels(deltas)[-1]),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
         "| Term slope σ%d/σ%d | %s (%s) |"
@@ -1295,6 +1355,9 @@ def context_lines(rows):
         "**Δσ trend** " + sparkline_summary(deltas[-SPARK_WIDTH:]),
         "",
         "**Term structure** (σ ann.): %s" % term,
+        "",
+        "_Volatility labels are sticky: a band must hold for %d readings before"
+        " the label changes._" % VOLATILITY_CONFIRM,
     ]
     return lines
 
@@ -1302,11 +1365,12 @@ def context_lines(rows):
 def readings_table(rows, limit=REPORT_READING_ROWS):
     """The decision-relevant columns for the most recent readings, newest first."""
     readings = drawdown_rows(rows)[-limit:]
+    labels = volatility_labels(delta_series(rows))[-len(readings) :]
     lines = [
-        "| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Regime |",
-        "|------|-------------|----------|-------|--------|-----|--------|",
+        "| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Volatility |",
+        "|------|-------------|----------|-------|--------|-----|------------|",
     ]
-    for reading in reversed(readings):
+    for reading, label in zip(reversed(readings), reversed(labels)):
         row = reading.row
         delta = float(row["delta_sigma"])
         lines.append(
@@ -1318,7 +1382,7 @@ def readings_table(rows, limit=REPORT_READING_ROWS):
                 reading.mode,
                 reading.signal,
                 delta,
-                regime(delta),
+                label,
             )
         )
     return lines
@@ -1334,7 +1398,7 @@ def build_readme_section(rows):
             % (
                 reading.mode.capitalize(),
                 reading.drawdown * 100,
-                reading_headline(latest),
+                reading_headline(latest, volatility_labels(delta_series(rows))[-1]),
                 TERM_SHORT,
                 TERM_LONG,
                 slope_display(slope),
@@ -1447,7 +1511,9 @@ def cmd_rebuild(ci=False, reset_switch=False):
             "  (kept the recorded switch state for %d reading%s)"
             % (preserved, "" if preserved == 1 else "s")
         )
-    print_reading(rows[-1], float(rows[-1]["delta_sigma"]))
+    print_reading(
+        rows[-1], float(rows[-1]["delta_sigma"]), volatility_labels(delta_series(rows))[-1]
+    )
 
     if ci:
         write_step_summary(rows)
@@ -1463,7 +1529,7 @@ def write_step_summary(rows):
     with open(path, "a") as handle:
         handle.write("## VALL drawdown monitor\n\n")
         handle.write("\n".join(state_lines(rows)) + "\n\n")
-        handle.write("%s\n\n" % reading_headline(latest))
+        handle.write("%s\n\n" % reading_headline(latest, volatility_labels(delta_series(rows))[-1]))
         handle.write("%s\n\n" % sparkline_summary(delta_series(rows)[-SPARK_WIDTH:]))
         handle.write(
             "Volatility term structure (σ ann., %s d): %s\n\n"

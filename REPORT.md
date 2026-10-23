@@ -29,7 +29,7 @@ _Rule: switch to cash at or below -15% of the trailing peak; return to equity at
 
 | Metric | Value |
 |--------|-------|
-| Δσ | 0.89 🟢 normal |
+| Δσ | 0.89 🔵 compressing |
 | Current σ (W=20, ann.) | 9.36% |
 | Baseline μ (N≤90) | 10.47% |
 | Term slope σ10/σ30 | 0.82 (contango) |
@@ -40,14 +40,16 @@ _Rule: switch to cash at or below -15% of the trailing peak; return to equity at
 
 **Term structure** (σ ann.): 10d 8.65% · 20d 9.36% · 30d 10.53% · 60d —
 
+_Volatility labels are sticky: a band must hold for 3 readings before the label changes._
+
 ## Recent readings
 
-| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Regime |
-|------|-------------|----------|-------|--------|-----|--------|
-| 2026-10-22 | 3.655 | -3.63% | equity | hold | 0.89 | 🟢 normal |
+| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Volatility |
+|------|-------------|----------|-------|--------|-----|------------|
+| 2026-10-22 | 3.655 | -3.63% | equity | hold | 0.89 | 🔵 compressing |
 | 2026-10-21 | 3.699 | -2.48% | equity | hold | 0.82 | 🔵 compressing |
-| 2026-10-20 | 3.687 | -2.78% | equity | hold | 0.80 | 🔵 compressing |
-| 2026-10-19 | 3.704 | -2.33% | equity | hold | 0.82 | 🔵 compressing |
+| 2026-10-20 | 3.687 | -2.78% | equity | hold | 0.80 | 🟢 normal |
+| 2026-10-19 | 3.704 | -2.33% | equity | hold | 0.82 | 🟢 normal |
 | 2026-10-16 | 3.699 | -2.47% | equity | hold | 0.95 | 🟢 normal |
 | 2026-10-15 | 3.719 | -1.94% | equity | hold | 0.95 | 🟢 normal |
 | 2026-10-14 | 3.752 | -1.07% | equity | hold | 0.95 | 🟢 normal |

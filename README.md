@@ -14,7 +14,7 @@ dispersion, not direction, and never change the switch.
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Equity** · -3.63% from peak · **Δσ = 0.89** 🟢 normal · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
+**Equity** · -3.63% from peak · **Δσ = 0.89** 🔵 compressing · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
 
 `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
@@ -38,7 +38,7 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 4. **Reading:** `delta_sigma = sigma_t / mu` - a value above 1 means volatility
    is expanding, below 1 means it is compressing.
 
-### Regime labels
+### Volatility labels
 
 | delta_sigma | Label |
 |-------------|-------|
@@ -47,6 +47,18 @@ delta_sigma = sigma_current / mu_sigma(t - N)
 | 0.85 - 1.15 | normal |
 | 0.7 - 0.85 | compressing |
 | < 0.7 | compressed |
+
+The labels describe the *size* of recent moves, not their direction: a steady
+climb in small daily steps is "compressing", just as a steady fall in small
+steps is. They are derived context, not a recorded signal - nothing acts on
+them, so re-rendering history under changed bands is acceptable (unlike the
+switch state, which is stored).
+
+They are also **sticky**: a band must hold for `VOLATILITY_CONFIRM` readings
+(3) before the label moves. delta_sigma crosses a band edge on ordinary noise,
+and without that rule a single quiet session re-labels the series and implies a
+change in conditions that did not happen. Consequence: after a genuine turn the
+label lags the raw value by up to two readings.
 
 ### Volatility term structure
 

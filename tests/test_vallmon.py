@@ -374,8 +374,25 @@ def test_compute_rows_matches_independent_reference(monkeypatch):
         (0.69, "compressed"),
     ],
 )
-def test_regime_boundaries(delta, label):
-    assert label in vallmon.regime(delta)
+def test_volatility_label_boundaries(delta, label):
+    assert label in vallmon.volatility_label(delta)
+
+
+def test_volatility_labels_ignore_a_single_reading_off_band():
+    # 0.82 alone is "compressing", but one quiet session must not relabel.
+    assert vallmon.volatility_labels([1.0, 1.0, 0.82, 1.0], confirm=3) == ["🟢 normal"] * 4
+
+
+def test_volatility_labels_switch_after_confirmation():
+    labels = vallmon.volatility_labels([1.0, 0.82, 0.80, 0.81, 1.0], confirm=3)
+    assert labels[2] == "🟢 normal"          # two readings in, not yet confirmed
+    assert labels[3] == "🔵 compressing"     # third reading confirms the band
+    assert labels[4] == "🔵 compressing"     # back to normal, but unconfirmed
+
+
+def test_volatility_labels_reject_a_zero_confirmation():
+    with pytest.raises(ValueError):
+        vallmon.volatility_labels([1.0], confirm=0)
 
 
 def test_sparkline_empty():
