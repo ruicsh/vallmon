@@ -420,13 +420,20 @@ def volatility_band(delta):
     return len(VOLATILITY_BANDS)
 
 
-def band_label(index):
-    """The emoji + name for a band index."""
+def band_name(index):
+    """The plain name for a band index."""
     if index < len(VOLATILITY_BANDS):
-        _, name, dot = VOLATILITY_BANDS[index]
+        return VOLATILITY_BANDS[index][1]
+    return VOLATILITY_COMPRESSED[0]
+
+
+def band_label(index):
+    """The emoji + name for a band index (terminal surfaces)."""
+    if index < len(VOLATILITY_BANDS):
+        dot = VOLATILITY_BANDS[index][2]
     else:
-        name, dot = VOLATILITY_COMPRESSED
-    return "%s %s" % (dot, name)
+        dot = VOLATILITY_COMPRESSED[1]
+    return "%s %s" % (dot, band_name(index))
 
 
 def volatility_label(delta):
@@ -434,12 +441,26 @@ def volatility_label(delta):
     return band_label(volatility_band(delta))
 
 
-def volatility_labels(deltas, confirm=VOLATILITY_CONFIRM):
-    """Sticky labels for a delta_sigma series.
+def volatility_image(index):
+    """The level-bar asset for a band index (README surfaces)."""
+    name = band_name(index)
+    return '<img src="docs/assets/vol-%s.svg" alt="%s" width="19" height="12">' % (
+        name,
+        name,
+    )
 
-    A band must hold for `confirm` consecutive readings before the label moves,
-    so ordinary day-to-day noise around a band edge cannot re-label the series.
-    The first reading sets the starting label.
+
+def volatility_markdown(index):
+    """Bar + name, for the GitHub-rendered README."""
+    return "%s %s" % (volatility_image(index), band_name(index))
+
+
+def volatility_bands(deltas, confirm=VOLATILITY_CONFIRM):
+    """Sticky band index per reading (0 = elevated, len = compressed).
+
+    A band must hold for `confirm` consecutive readings before it moves, so
+    ordinary day-to-day noise around a band edge cannot re-label the series.
+    The first reading sets the starting band.
     """
     if confirm < 1:
         raise ValueError("confirm must be at least 1")
@@ -449,7 +470,7 @@ def volatility_labels(deltas, confirm=VOLATILITY_CONFIRM):
     current = bands[0]
     pending = None
     streak = 0
-    labels = [band_label(current)]
+    result = [current]
     for band in bands[1:]:
         if band == current:
             pending, streak = None, 0
@@ -460,8 +481,13 @@ def volatility_labels(deltas, confirm=VOLATILITY_CONFIRM):
                 pending, streak = band, 1
             if streak >= confirm:
                 current, pending, streak = band, None, 0
-        labels.append(band_label(current))
-    return labels
+        result.append(current)
+    return result
+
+
+def volatility_labels(deltas, confirm=VOLATILITY_CONFIRM):
+    """Sticky emoji labels, for surfaces that cannot render images."""
+    return [band_label(index) for index in volatility_bands(deltas, confirm)]
 
 
 # --- Drawdown ---------------------------------------------------------------
@@ -1405,7 +1431,7 @@ def summary_lines(rows):
     return [
         "| Metric | Value |",
         "|--------|-------|",
-        "| Δσ | %.2f %s |" % (delta, volatility_labels(deltas)[-1]),
+        "| Δσ | %.2f %s |" % (delta, volatility_markdown(volatility_bands(deltas)[-1])),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
         "| Term slope σ%d/σ%d | %s (%s) |"
@@ -1440,12 +1466,12 @@ def readings_table(rows, limit=REPORT_READING_ROWS):
     """The decision-relevant columns for the most recent readings, newest first."""
     readings = drawdown_rows(rows)[-limit:]
     changes = daily_change_series(rows)[-len(readings) :]
-    labels = volatility_labels(delta_series(rows))[-len(readings) :]
+    bands = volatility_bands(delta_series(rows))[-len(readings) :]
     lines = [
         "| Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |",
         "|------|------------:|------:|---------:|-------|--------|----:|------------|",
     ]
-    for reading, change, label in zip(reversed(readings), reversed(changes), reversed(labels)):
+    for reading, change, band in zip(reversed(readings), reversed(changes), reversed(bands)):
         row = reading.row
         delta = float(row["delta_sigma"])
         day = day_markdown(change)
@@ -1459,7 +1485,7 @@ def readings_table(rows, limit=REPORT_READING_ROWS):
                 reading.mode,
                 reading.signal,
                 delta,
-                label,
+                volatility_markdown(band),
             )
         )
     return lines
