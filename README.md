@@ -12,15 +12,15 @@ context: they describe dispersion, not direction, and never change the switch.
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-_As of 2026-10-22 · 23 readings · 2026-09-22 → 2026-10-22_
+_As of 2026-10-23 · 24 readings · 2026-09-22 → 2026-10-23_
 
 ## State
 
-**Equity** — drawdown -3.63%, unchanged for 23 readings (since 2026-09-22).
+**Equity** — drawdown -3.69%, unchanged for 24 readings (since 2026-09-22).
 
-No action. Switch to cash at -15% — a further 11.4 pp.
+No action. Switch to cash at -15% — a further 11.3 pp.
 
-> Window: 23 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-18.
+> Window: 24 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-17.
 
 ## Signal history
 
@@ -31,9 +31,9 @@ _No state changes yet — the switch has been in **equity** since the first read
 | Metric | Value |
 |--------|-------|
 | Peak (trailing 756d) | 3.7925 (2026-10-06) |
-| Current drawdown | -3.63% |
-| Distance to switch | 11.4 pp |
-| History seen | 23 of 756 readings |
+| Current drawdown | -3.69% |
+| Distance to switch | 11.3 pp |
+| History seen | 24 of 756 readings |
 
 _Rule: switch to cash at or below -15% of the trailing peak; return to equity at or above -5%._
 
@@ -41,16 +41,16 @@ _Rule: switch to cash at or below -15% of the trailing peak; return to equity at
 
 | Metric | Value |
 |--------|-------|
-| Δσ | 0.89 🔵 compressing |
-| Current σ (W=20, ann.) | 9.36% |
-| Baseline μ (N≤90) | 10.47% |
-| Term slope σ10/σ30 | 0.82 (contango) |
-| Latest volume | 8,669,701 units |
+| Δσ | 0.87 🔵 compressing |
+| Current σ (W=20, ann.) | 9.07% |
+| Baseline μ (N≤90) | 10.43% |
+| Term slope σ10/σ30 | 0.77 (contango) |
+| Latest volume | 13,052,570 units |
 | Δσ min / max / median | 0.80 / 1.04 / 0.97 |
 
-**Δσ trend** `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` 1.01 → 0.89 (range 0.80–1.04, 23 readings)
+**Δσ trend** `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃▂` 1.01 → 0.87 (range 0.80–1.04, 24 readings)
 
-**Term structure** (σ ann.): 10d 8.65% · 20d 9.36% · 30d 10.53% · 60d —
+**Term structure** (σ ann.): 10d 7.92% · 20d 9.07% · 30d 10.29% · 60d —
 
 _Volatility labels are sticky: a band must hold for 3 readings before the label changes._
 
@@ -58,6 +58,7 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 | Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
 |------|------------:|------:|---------:|-------|--------|----:|------------|
+| 2026-10-23 | 3.652 | -0.07% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.69% | equity | hold | 0.87 | 🔵 compressing |
 | 2026-10-22 | 3.655 | -1.18% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.63% | equity | hold | 0.89 | 🔵 compressing |
 | 2026-10-21 | 3.699 | +0.31% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.48% | equity | hold | 0.82 | 🔵 compressing |
 | 2026-10-20 | 3.687 | -0.46% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -2.78% | equity | hold | 0.80 | 🟢 normal |
@@ -77,9 +78,8 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 | 2026-09-30 | 3.740 | -0.01% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -0.80% | equity | hold | 0.95 | 🟢 normal |
 | 2026-09-29 | 3.740 | +0.12% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.78% | equity | hold | 0.95 | 🟢 normal |
 | 2026-09-28 | 3.736 | -0.74% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -0.90% | equity | hold | 1.03 | 🟢 normal |
-| 2026-09-25 | 3.764 | +0.51% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.16% | equity | hold | 1.03 | 🟢 normal |
 
-_Last 20 of 23 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
+_Last 20 of 24 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
 
 _How these are computed: [docs/methodology.md](docs/methodology.md)._
 <!-- REPORT:END -->
