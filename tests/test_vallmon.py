@@ -5,10 +5,13 @@ Run with `python -m pytest` from the repository root.
 
 from __future__ import annotations
 
+import csv
 import io
 import json
 import math
 import statistics
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -54,6 +57,29 @@ def _sigma_series(closes, window):
         chunk = returns[j - window + 1 : j + 1]
         out[j + 1] = statistics.stdev(chunk) * math.sqrt(vallmon.TRADING_DAYS_PER_YEAR)
     return out
+
+
+def _epoch(day, hour=16):
+    """Unix seconds for a London wall-clock time on `day`."""
+    stamp = datetime.fromisoformat("%sT%02d:00:00" % (day, hour))
+    return int(stamp.replace(tzinfo=ZoneInfo(vallmon.EXCHANGE_TZ)).timestamp())
+
+
+def _close_row(day, close):
+    """A formatted stored row with a chosen close."""
+    return vallmon._format(
+        {
+            "date": day,
+            "close": close,
+            "volume": 1000,
+            "sigma_annualized": 0.1,
+            "baseline_mean": 0.1,
+            "delta_sigma": 1.0,
+            "sigma_10": None,
+            "sigma_30": None,
+            "sigma_60": None,
+        }
+    )
 
 
 # --- parsing ----------------------------------------------------------------
@@ -128,9 +154,10 @@ def test_fetch_prices_gives_up_with_fetch_error(monkeypatch):
         vallmon.fetch_prices(attempts=2, backoff=0)
 
 
-def test_fetch_prices_requests_full_history(monkeypatch):
-    # `rebuild` overwrites the CSV from the fetch, so the request must cover the
-    # whole available series - a fixed lookback would truncate older readings.
+def test_fetch_prices_requests_full_history_first(monkeypatch):
+    # `rebuild` overwrites the CSV from the fetch, so the request must start
+    # from the longest range available - a bounded lookback would silently
+    # truncate readings once the series outgrows it.
     seen = {}
 
     def fake_urlopen(request, timeout=30):
@@ -140,8 +167,131 @@ def test_fetch_prices_requests_full_history(monkeypatch):
     monkeypatch.setattr(vallmon.urllib.request, "urlopen", fake_urlopen)
     vallmon.fetch_prices()
 
-    assert "range=max" in seen["url"]
+    assert "range=%s" % vallmon.YAHOO_RANGE in seen["url"]
+    assert "interval=1d" in seen["url"]
     assert vallmon.TICKER in seen["url"]
+
+
+def test_fetch_prices_falls_back_when_max_is_served_intraday(monkeypatch):
+    # `range=max` comes back hourly for some tickers (observed on VALL.L). The
+    # fallback must be a bounded range that is served daily, and it must only
+    # be tried when the first response says the data is not daily.
+    hourly = _chart_payload([(_epoch("2026-01-05", 8), 3.70, 1000)])
+    hourly["chart"]["result"][0]["meta"] = {"dataGranularity": "1h"}
+    daily = _chart_payload([(_epoch("2026-01-05"), 3.75, 500)])
+    daily["chart"]["result"][0]["meta"] = {"dataGranularity": "1d"}
+    calls = []
+
+    def fake_urlopen(request, timeout=30):
+        calls.append(request.full_url)
+        body = hourly if "range=%s" % vallmon.YAHOO_RANGE in request.full_url else daily
+        return _FakeResponse(json.dumps(body).encode())
+
+    monkeypatch.setattr(vallmon.urllib.request, "urlopen", fake_urlopen)
+    prices = vallmon.fetch_prices()
+
+    assert len(calls) == 2
+    assert "range=%s" % vallmon.YAHOO_RANGE in calls[0]
+    assert "range=%s" % vallmon.YAHOO_DAILY_FALLBACK_RANGE in calls[1]
+    assert prices == [("2026-01-05", 3.75, 500)]
+
+
+def test_fetch_prices_does_not_fall_back_when_max_is_daily(monkeypatch):
+    daily = _chart_payload([(_epoch("2026-01-05"), 3.75, 500)])
+    daily["chart"]["result"][0]["meta"] = {"dataGranularity": "1d"}
+    calls = []
+
+    def fake_urlopen(request, timeout=30):
+        calls.append(request.full_url)
+        return _FakeResponse(json.dumps(daily).encode())
+
+    monkeypatch.setattr(vallmon.urllib.request, "urlopen", fake_urlopen)
+    vallmon.fetch_prices()
+
+    assert len(calls) == 1
+
+
+def test_fetch_prices_warns_when_fallback_is_still_intraday(monkeypatch, capsys):
+    hourly = _chart_payload([(_epoch("2026-01-05", 8), 3.70, 1000)])
+    hourly["chart"]["result"][0]["meta"] = {"dataGranularity": "1h"}
+
+    def fake_urlopen(request, timeout=30):
+        return _FakeResponse(json.dumps(hourly).encode())
+
+    monkeypatch.setattr(vallmon.urllib.request, "urlopen", fake_urlopen)
+    prices = vallmon.fetch_prices()
+
+    assert prices == [("2026-01-05", 3.70, 1000)]      # degraded, not fatal
+    assert "granularity" in capsys.readouterr().err
+
+
+# --- bar granularity --------------------------------------------------------
+
+def test_parse_payload_collapses_multiple_bars_per_session():
+    # A series with several observations per day would make the "daily" returns
+    # an intraday statistic, so one bar per date survives: the last close and
+    # the summed volume.
+    payload = _chart_payload(
+        [
+            (_epoch("2026-01-05", 8), 3.70, 1000),
+            (_epoch("2026-01-05", 12), 3.72, 2000),
+            (_epoch("2026-01-05", 16), 3.75, 500),   # last bar of the session wins
+            (_epoch("2026-01-06", 16), 3.80, 2000),
+        ]
+    )
+    assert vallmon._parse_payload(payload) == [
+        ("2026-01-05", 3.75, 3500),
+        ("2026-01-06", 3.80, 2000),
+    ]
+
+
+def test_parse_payload_uses_the_latest_bar_by_timestamp():
+    # "Last bar of the session" must follow the clock, not payload order.
+    payload = _chart_payload(
+        [
+            (_epoch("2026-01-05", 16), 3.75, 500),
+            (_epoch("2026-01-05", 8), 3.70, 1000),
+        ]
+    )
+    assert vallmon._parse_payload(payload) == [("2026-01-05", 3.75, 1500)]
+
+
+def test_parse_payload_leaves_daily_bars_unchanged():
+    payload = _chart_payload(
+        [
+            (_epoch("2026-01-05"), 3.75, 500),
+            (_epoch("2026-01-06"), 3.80, 2000),
+        ]
+    )
+    assert vallmon._parse_payload(payload) == [
+        ("2026-01-05", 3.75, 500),
+        ("2026-01-06", 3.80, 2000),
+    ]
+
+
+# --- partial bars -----------------------------------------------------------
+
+def test_drop_partial_bar_removes_todays_bar_before_the_close():
+    now = datetime(2026, 10, 23, 15, 22, tzinfo=ZoneInfo(vallmon.EXCHANGE_TZ))
+    prices = [("2026-10-22", 3.70, 1000), ("2026-10-23", 3.65, 100)]
+    assert vallmon.drop_partial_bar(prices, now=now) == [("2026-10-22", 3.70, 1000)]
+
+
+@pytest.mark.parametrize("hour", [17, 18])
+def test_drop_partial_bar_keeps_todays_bar_after_the_close(hour):
+    now = datetime(2026, 10, 23, hour, 0, tzinfo=ZoneInfo(vallmon.EXCHANGE_TZ))
+    prices = [("2026-10-22", 3.70, 1000), ("2026-10-23", 3.65, 100)]
+    assert vallmon.drop_partial_bar(prices, now=now) == prices
+
+
+def test_drop_partial_bar_keeps_an_older_last_bar():
+    now = datetime(2026, 10, 23, 10, 0, tzinfo=ZoneInfo(vallmon.EXCHANGE_TZ))
+    prices = [("2026-10-21", 3.70, 1000), ("2026-10-22", 3.65, 100)]
+    assert vallmon.drop_partial_bar(prices, now=now) == prices
+
+
+def test_drop_partial_bar_empty_series():
+    assert vallmon.drop_partial_bar([]) == []
 
 
 # --- metric -----------------------------------------------------------------
@@ -229,6 +379,64 @@ def test_sparkline_maps_low_and_high():
     line = vallmon.sparkline([0.0, 1.0])
     assert line[0] == vallmon.SPARK_CHARS[0]
     assert line[1] == vallmon.SPARK_CHARS[-1]
+
+
+# --- drawdown ---------------------------------------------------------------
+
+def test_trailing_peaks_track_the_trailing_window():
+    closes = [10, 12, 11, 9, 8, 7, 9, 13]
+    assert vallmon.trailing_peaks(closes, window=3) == [10, 12, 12, 12, 11, 9, 9, 13]
+
+
+def test_trailing_peaks_default_window_uses_all_available_history():
+    assert vallmon.trailing_peaks([10, 9, 8]) == [10, 10, 10]
+
+
+def test_drawdown_series_measures_from_the_peak():
+    drawdowns = vallmon.drawdown_series([100, 120, 108, 92, 96])
+    assert drawdowns[0] == 0.0                       # first reading is its own peak
+    assert drawdowns[1] == 0.0                       # new high
+    assert drawdowns[2] == pytest.approx(108 / 120 - 1)
+    assert drawdowns[3] == pytest.approx(92 / 120 - 1)
+    assert drawdowns[4] == pytest.approx(96 / 120 - 1)
+
+
+def test_drawdown_signal_three_states():
+    assert vallmon.drawdown_signal(120, 120) == "refill"
+    assert vallmon.drawdown_signal(110, 120) == "hold"
+    assert vallmon.drawdown_signal(102, 120) == "draw from cash"   # exactly -15%
+    assert vallmon.drawdown_signal(101, 120) == "draw from cash"
+
+
+def test_drawdown_signal_threshold_is_configurable():
+    assert vallmon.drawdown_signal(90, 100, threshold=0.05) == "draw from cash"
+    assert vallmon.drawdown_signal(90, 100, threshold=0.15) == "hold"
+
+
+def test_drawdown_rows_pair_each_reading_with_its_signal():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.2),
+        }
+    )
+    out = vallmon.drawdown_rows(rows)
+    assert [entry[0]["date"] for entry in out] == ["2026-01-02", "2026-01-03"]
+    assert [entry[3] for entry in out] == ["refill", "draw from cash"]
+
+
+def test_drawdown_lines_report_peak_and_signal():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.2),
+        }
+    )
+    text = "\n".join(vallmon.drawdown_lines(rows))
+    assert "| Peak (trailing 756d) | 4.0000 (2026-01-02) |" in text
+    assert "| Current drawdown | -20.00% |" in text
+    assert "| History seen | 2 of 756 readings |" in text
+    assert "| Signal | **draw from cash** |" in text
 
 
 # --- term structure ---------------------------------------------------------
@@ -622,6 +830,31 @@ def test_cmd_run_warns_on_drift(monkeypatch, tmp_path, capsys):
     assert "0 new readings" in captured.out
 
 
+def test_cmd_run_strict_refuses_to_append_drifted_data(monkeypatch, tmp_path, capsys):
+    prices = [
+        ("2026-01-01", 100.0, 1000),
+        ("2026-01-02", 110.0, 2000),
+        ("2026-01-03", 99.0, 3000),
+        ("2026-01-04", 108.9, 4000),
+        ("2026-01-05", 100.0, 5000),
+    ]
+    _seeded(tmp_path, monkeypatch, prices)
+    monkeypatch.setattr(vallmon, "WINDOW", 2)
+    vallmon.cmd_run()
+    capsys.readouterr()
+
+    rows = vallmon.load_rows()
+    rows["2026-01-04"]["delta_sigma"] = "9.0000"
+    vallmon.save_rows(rows)
+
+    assert vallmon.cmd_run(strict=True) == 1
+    captured = capsys.readouterr()
+    assert "refusing to append" in captured.err
+    assert "rebuild" in captured.err
+    # The drifted row is left untouched rather than buried under a new one.
+    assert vallmon.load_rows()["2026-01-04"]["delta_sigma"] == "9.0000"
+
+
 def test_cmd_run_returns_error_on_fetch_failure(monkeypatch, capsys):
     def boom(*a, **k):
         raise vallmon.FetchError("no data")
@@ -746,3 +979,77 @@ def test_cmd_history_without_readings(tmp_path, monkeypatch, capsys):
 
     assert vallmon.cmd_history(5) == 0
     assert "No readings yet" in capsys.readouterr().out
+
+
+def test_cmd_drawdown_prints_recent_rows(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
+    vallmon.save_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.2),
+        }
+    )
+
+    assert vallmon.cmd_drawdown(5) == 0
+    out = capsys.readouterr().out
+    assert "last 2 readings" in out
+    assert "draw from cash" in out
+    assert "history seen  2 of %d readings" % vallmon.DRAWDOWN_PEAK_WINDOW in out
+
+
+def test_cmd_drawdown_rejects_nonpositive_limit(capsys):
+    assert vallmon.cmd_drawdown(0) == 2
+    assert "--limit" in capsys.readouterr().err
+
+
+def test_cmd_drawdown_without_readings(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "nope.csv")
+
+    assert vallmon.cmd_drawdown(5) == 0
+    assert "No readings yet" in capsys.readouterr().out
+
+
+# --- committed data ---------------------------------------------------------
+
+def test_committed_csv_recomputes_from_its_own_closes():
+    """Every committed reading must agree with the closes it stores.
+
+    The log begins at the first *reading*, not the first close, so the earliest
+    sigmas cannot be re-derived offline: their windows reach back into prices
+    the CSV never recorded. `run --strict` covers that by refetching the full
+    history and comparing every field. What is checkable here is that each
+    reading's sigma matches the trailing window of stored closes, and that
+    delta_sigma really is sigma / baseline for every row.
+    """
+    with vallmon.CSV_PATH.open(newline="") as handle:
+        stored = list(csv.DictReader(handle))
+    if len(stored) < vallmon.WINDOW + 2:
+        pytest.skip("not enough committed readings to verify")
+
+    closes = [float(row["close"]) for row in stored]
+    returns = [math.log(closes[i] / closes[i - 1]) for i in range(1, len(closes))]
+
+    mismatches = []
+    for window in vallmon.SIGMA_WINDOWS:
+        field = vallmon.sigma_field(window)
+        for index, fresh in vallmon._sigma_series(returns, window).items():
+            row = stored[index]
+            stored_value = vallmon._as_float(row.get(field))
+            if stored_value is None:
+                continue
+            if abs(stored_value - fresh) > vallmon.DRIFT_TOLERANCE:
+                mismatches.append((row["date"], field, stored_value, fresh))
+
+    for row in stored:
+        sigma = vallmon._as_float(row.get("sigma_annualized"))
+        baseline = vallmon._as_float(row.get("baseline_mean"))
+        delta = vallmon._as_float(row.get("delta_sigma"))
+        if sigma is None or not baseline or delta is None:
+            continue
+        if abs(delta - sigma / baseline) > vallmon.DRIFT_TOLERANCE:
+            mismatches.append((row["date"], "delta_sigma", delta, sigma / baseline))
+
+    assert not mismatches, (
+        "%d committed value(s) do not reproduce from the stored closes; "
+        "run `python vallmon.py rebuild`. First: %r" % (len(mismatches), mismatches[:3])
+    )

@@ -59,7 +59,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Update reading
-        run: python vallmon.py run --ci
+        # --strict: never commit an append to a series that no longer reproduces
+        # from source. A failure here means "run rebuild", not "ignore".
+        run: python vallmon.py run --ci --strict
 
       - name: Regenerate README report
         run: python vallmon.py report

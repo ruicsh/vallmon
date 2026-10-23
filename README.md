@@ -10,9 +10,9 @@ short-vs-long volatility term structure (σ10/σ20/σ30/σ60).
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Δσ = 1.71** 🔴 elevated · 5.96% vol vs 3.48% baseline · 1,935,723 units · 2026-10-22 · TS σ10/σ30 1.26
+**Δσ = 0.89** 🟢 normal · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
 
-`▂▅▅▄▂▁▄▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▃▂▇▅▅█` · [Full report →](REPORT.md)
+`▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
 
 ## Methodology
@@ -67,10 +67,41 @@ A window only produces a value once that many trading days of returns exist, so
 the longer legs (30d, 60d) appear as an em dash until enough history accrues -
 the same adaptive behavior as the baseline.
 
+### Drawdown switch
+
+`delta_sigma` measures dispersion, not direction, so it cannot tell you whether
+to sell. The drawdown rule answers a narrower question that *is* answerable -
+which asset to sell from:
+
+```
+drawdown = close / peak - 1        peak = max close over the trailing 756d
+```
+
+| drawdown | Signal |
+|----------------|-----------------|
+| `>= 0` (new high) | **refill** the cash bucket |
+| `-15% .. 0` | **hold** |
+| `<= -15%` | **draw from cash** |
+
+Unlike Δσ this has no baseline, no fitted parameters and no forecast: it is an
+observable state of the price series, so it cannot drift the way a rolling
+statistic can. `python vallmon.py drawdown` prints the recent series.
+
+The peak window is ~3 years, so until that much history exists the rule is
+running on a partial window - the report states how many readings it has seen.
+The window and threshold are **provisional defaults** (three years, 15%), not
+backtested parameters; treat a signal as information rather than a validated
+trigger.
+
 ### Data & caveats
 
 - **Source:** Yahoo Finance `VALL.L` daily closes (GBP). Rows with a null close
-  or zero volume (new-listing placeholders) are dropped.
+  or zero volume (new-listing placeholders) are dropped, and several bars for
+  one session are collapsed to the last close with summed volume. That collapse
+  is a backstop: Yahoo serves `range=max` at *hourly* granularity for this
+  ticker (observed 2026-10), which would silently turn the daily returns series
+  into an intraday one. The fetch therefore checks the declared granularity and
+  retries with a bounded range (`range=20y`) that it does serve daily.
 - **Volume:** each row also records that day's traded volume in ETF units
   (Yahoo's `volume` field) as context for the reading. It is *not* part of the
   Δσ metric, and it is a unit count, not a cash amount - turnover is roughly
@@ -83,12 +114,17 @@ the same adaptive behavior as the baseline.
   the 60-day term-structure leg stays empty until ~mid-November 2026.
 - **Reproducibility:** each row is written once and never silently rewritten. If
   Yahoo later revises a historical close, `run` prints a drift warning (checked
-  against the primary σ, baseline, Δσ and every term-structure leg) and
-  `python vallmon.py rebuild` recomputes the whole series from source. The fetch
-  requests the full available history (`range=max`), so `rebuild` can never
-  truncate readings that have aged past a fixed lookback window.
-- **Partial bars:** `run`/`rebuild` executed during London trading hours capture
-  an incomplete current-day bar; the scheduled 18:00 UTC run avoids this.
+  against the primary σ, baseline, Δσ and every term-structure leg); `--strict`
+  makes that warning fatal so CI cannot commit a drifted series, and
+  `python vallmon.py rebuild` recomputes the whole series from source.
+  `tests/test_vallmon.py` additionally re-derives every committed reading from
+  its own `close` column, so a series built from a different price source fails
+  the test suite rather than quietly producing readings.
+- **Partial bars:** a bar captured before the 16:30 London close is incomplete,
+  so `fetch_prices` drops the current session and the next run picks it up. The
+  scheduled 18:00 UTC run is safely after the close. `rebuild` is consequently
+  time-of-day dependent: running it at 14:00 and at 18:00 on the same day
+  produces different CSVs, by design.
 
 ## Setup
 
@@ -98,10 +134,12 @@ the same adaptive behavior as the baseline.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python vallmon.py run       # fetch + append + print the latest reading
-python vallmon.py rebuild   # recompute the whole series from source (overwrites CSV)
-python vallmon.py history   # recent readings with a trend sparkline
-python vallmon.py report    # regenerate the "Current reading" section above
+python vallmon.py run             # fetch + append + print the latest reading
+python vallmon.py run --strict    # ...but refuse to append if stored rows drifted
+python vallmon.py rebuild         # recompute the whole series from source (overwrites CSV)
+python vallmon.py history         # recent readings with a trend sparkline
+python vallmon.py drawdown        # drawdown from the trailing peak + switch signal
+python vallmon.py report          # regenerate the "Current reading" section above
 ```
 
 ### Development

@@ -34,6 +34,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime
+from datetime import time as dt_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -53,6 +54,23 @@ BASELINE = 90   # N: max baseline window, in trading days (adaptive below this)
 SIGMA_WINDOWS = [10, 20, 30, 60]
 TERM_SHORT = 10  # numerator window for the term-structure slope
 TERM_LONG = 30   # denominator window for the term-structure slope
+
+# Drawdown switch. Unlike delta-sigma this needs no baseline and no forecast: it
+# is a fixed, observable rule for deciding which asset to sell from, so it has
+# no parameters fitted to history and cannot drift the way a rolling statistic
+# can.
+#
+# Both numbers are provisional defaults, not calibrated parameters: 756 days is
+# simply "about three years", and 15% is a conventional correction threshold.
+# They are function arguments so the rule can be re-parameterised without being
+# rewritten - but nothing here has been backtested, so treat a signal as
+# information, not as a validated trigger.
+DRAWDOWN_PEAK_WINDOW = 756   # trailing peak, ~3 years of trading days
+DRAWDOWN_THRESHOLD = 0.15    # switch to cash at -15% from the trailing peak
+
+# London cash close. A bar captured before it is incomplete, so `fetch_prices`
+# drops it rather than freezing a partial session into the append-only log.
+SESSION_CLOSE = dt_time(16, 30)
 
 # Every term-structure window except the primary one. This is the single source
 # of truth for both the persisted CSV columns and the per-row computation, so
@@ -88,10 +106,18 @@ CSV_FIELDS = [
 # with a fresh recompute is reported as drift (see find_drift).
 METRIC_FIELDS = ["sigma_annualized", "baseline_mean", "delta_sigma"] + TERM_FIELDS
 
-# Ask for the full available history rather than a fixed window. `run` merges
-# into the existing CSV but `rebuild` overwrites it, so a bounded lookback would
-# silently truncate readings older than the window once the series outgrows it.
+# Ask for the full available history: `run` merges into the existing CSV but
+# `rebuild` overwrites it, so a short lookback would silently truncate readings
+# once the series outgrows it.
+#
+# `range=max` comes back at hourly granularity for some tickers regardless of
+# `interval=1d` (observed on VALL.L in 2026-10), which would turn the daily
+# returns series into an intraday one. `fetch_prices` detects that and retries
+# with a bounded range Yahoo does serve daily - long enough to cover any ETF
+# that has ever existed, so the truncation concern stays theoretical.
 YAHOO_RANGE = "max"
+YAHOO_DAILY_FALLBACK_RANGE = "20y"
+DAILY_GRANULARITY = "1d"
 YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
     "?range={range_}&interval=1d"
@@ -147,33 +173,77 @@ def _parse_payload(payload):
         )
 
     tz = ZoneInfo(EXCHANGE_TZ)
-    prices = []
-    for ts, close, volume in zip(timestamps, closes, volumes):
-        if close is None or volume is None or volume == 0:
-            continue
+    # Collapse to one bar per local date. Yahoo occasionally serves intraday
+    # bars even for `interval=1d` (see YAHOO_RANGE), and a series with several
+    # observations per day would turn the "daily" returns - and therefore sigma
+    # - into an intraday statistic. Sorting by timestamp first makes "the last
+    # bar of the session" follow the clock rather than the order the provider
+    # happened to emit; volume then sums to the day's traded units. With true
+    # daily bars this is a no-op.
+    bars = sorted(
+        (
+            (ts, close, volume)
+            for ts, close, volume in zip(timestamps, closes, volumes)
+            if close is not None and volume is not None and volume != 0
+        ),
+        key=lambda bar: bar[0],
+    )
+    by_day: dict[str, tuple[float, int]] = {}
+    for ts, close, volume in bars:
         day = datetime.fromtimestamp(ts, tz=tz).date().isoformat()
-        prices.append((day, float(close), int(volume)))
+        prior = by_day.get(day)
+        by_day[day] = (float(close), int(volume) + (prior[1] if prior else 0))
 
-    prices.sort(key=lambda row: row[0])
-    return prices
+    return [(day, close, units) for day, (close, units) in sorted(by_day.items())]
 
 
-def fetch_prices(range_=YAHOO_RANGE, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
-    """Fetch and parse VALL.L daily closes and volumes, retrying transient failures.
+def drop_partial_bar(prices, now=None):
+    """Drop the current session's bar while the London market is still open.
 
-    Network/timeout/parse errors are retried with exponential backoff; a
-    response that Yahoo explicitly flags as an error is raised immediately.
+    Yahoo returns the in-progress bar for today. Freezing it into the
+    append-only log would lock a partial session in for good (a later run never
+    rewrites a stored date), so it is dropped here and picked up by the run
+    after the close. `now` exists so tests can pin the clock.
     """
-    url = YAHOO_URL.format(ticker=TICKER, range_=range_)
+    if not prices:
+        return prices
+    now = now or datetime.now(ZoneInfo(EXCHANGE_TZ))
+    if now.time() >= SESSION_CLOSE:
+        return prices
+    today = now.date().isoformat()
+    return prices[:-1] if prices[-1][0] == today else prices
+
+
+def _chart_url(range_):
+    return YAHOO_URL.format(ticker=TICKER, range_=range_)
+
+
+def _payload_granularity(payload):
+    """Yahoo's declared bar granularity (``"1d"``, ``"1h"``, ...), or None."""
+    results = (payload.get("chart") or {}).get("result") or []
+    if not results:
+        return None
+    return (results[0].get("meta") or {}).get("dataGranularity")
+
+
+def _is_daily(payload):
+    """True unless the payload explicitly declares a non-daily granularity.
+
+    A payload without the metadata is assumed fine: the parser collapses bars
+    by date regardless, so an unknown granularity degrades rather than fails.
+    """
+    granularity = _payload_granularity(payload)
+    return granularity is None or granularity == DAILY_GRANULARITY
+
+
+def _fetch_payload(url, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
+    """GET `url` and decode the JSON, retrying transient failures."""
     last_error = None
     for attempt in range(1, attempts + 1):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(request, timeout=30) as response:
-                payload = json.load(response)
-            return _parse_payload(payload)
-        except FetchError:
-            raise
+                return json.load(response)
         except (urllib.error.URLError, OSError, ValueError) as exc:
             last_error = exc
             if attempt < attempts:
@@ -187,6 +257,31 @@ def fetch_prices(range_=YAHOO_RANGE, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACK
     raise FetchError(
         "failed to fetch %s after %d attempts: %s" % (TICKER, attempts, last_error)
     )
+
+
+def fetch_prices(range_=YAHOO_RANGE, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
+    """Fetch and parse VALL.L daily closes and volumes, retrying transient failures.
+
+    Network/timeout/parse errors are retried with exponential backoff; a
+    response that Yahoo explicitly flags as an error is raised immediately.
+
+    `range=max` is requested first so a rebuild can never truncate history, but
+    Yahoo sometimes serves it at hourly granularity (see YAHOO_RANGE). When the
+    response says so, the request is retried with a long bounded range that it
+    does serve daily. `_parse_payload` collapses bars by date either way, so a
+    still-intraday response still yields a usable daily series.
+    """
+    payload = _fetch_payload(_chart_url(range_), attempts, backoff)
+    if not _is_daily(payload):
+        payload = _fetch_payload(_chart_url(YAHOO_DAILY_FALLBACK_RANGE), attempts, backoff)
+        if not _is_daily(payload):
+            print(
+                "warning: %s served at %s granularity for range=%s; "
+                "session closes are approximated by the last bar."
+                % (TICKER, _payload_granularity(payload), YAHOO_DAILY_FALLBACK_RANGE),
+                file=sys.stderr,
+            )
+    return drop_partial_bar(_parse_payload(payload))
 
 
 # --- Metric -----------------------------------------------------------------
@@ -265,6 +360,70 @@ def regime(delta):
     if delta >= 0.7:
         return "\U0001F535 compressing"   # blue circle
     return "\u26AA compressed"            # white circle
+
+
+# --- Drawdown ---------------------------------------------------------------
+
+def trailing_peaks(closes, window=DRAWDOWN_PEAK_WINDOW):
+    """Trailing maximum close for each index, over at most `window` closes.
+
+    The peak includes the current observation, so a new high resets the
+    drawdown to zero. With less than `window` history the whole series is the
+    window, which is why callers report how much history the rule has seen.
+    """
+    return [max(closes[max(0, i - window + 1) : i + 1]) for i in range(len(closes))]
+
+
+def drawdown_series(closes, window=DRAWDOWN_PEAK_WINDOW):
+    """Fractional drawdown from the trailing peak: 0 at a new high, negative below."""
+    return [
+        close / peak - 1.0 if peak else 0.0
+        for close, peak in zip(closes, trailing_peaks(closes, window))
+    ]
+
+
+def drawdown_signal(close, peak, threshold=DRAWDOWN_THRESHOLD):
+    """Which asset to sell from, per the pre-committed rule.
+
+    - ``refill`` at a new high: top the cash bucket back up.
+    - ``draw from cash`` at or below ``-threshold``: leave the equity alone.
+    - ``hold`` in between: no action, which is the case most of the time.
+    """
+    if close >= peak:
+        return "refill"
+    if peak > 0 and (peak - close) / peak >= threshold:
+        return "draw from cash"
+    return "hold"
+
+
+def drawdown_rows(rows, window=DRAWDOWN_PEAK_WINDOW):
+    """[(row, peak, drawdown, signal)] over stored rows, oldest first."""
+    closes = [float(row["close"]) for row in rows]
+    peaks = trailing_peaks(closes, window)
+    return [
+        (row, peak, close / peak - 1.0, drawdown_signal(close, peak))
+        for row, close, peak in zip(rows, closes, peaks)
+    ]
+
+
+def drawdown_lines(rows, window=DRAWDOWN_PEAK_WINDOW):
+    """Markdown section describing the latest drawdown reading."""
+    _, peak, drawdown, signal = drawdown_rows(rows, window)[-1]
+    peak_day = next(
+        (row["date"] for row in reversed(rows) if abs(float(row["close"]) - peak) <= 1e-9),
+        "unknown",
+    )
+    return [
+        "| Metric | Value |",
+        "|--------|-------|",
+        "| Peak (trailing %dd) | %.4f (%s) |" % (window, peak, peak_day),
+        "| Current drawdown | %.2f%% |" % (drawdown * 100),
+        "| History seen | %d of %d readings |" % (len(rows), window),
+        "| Signal | **%s** |" % signal,
+        "",
+        "_Rule: draw from cash at or below -%.0f%% of the trailing peak; "
+        "refill only at a new high._" % (DRAWDOWN_THRESHOLD * 100),
+    ]
 
 
 def sparkline(values):
@@ -494,7 +653,7 @@ def _not_enough_history():
     return 0
 
 
-def cmd_run(ci=False):
+def cmd_run(ci=False, strict=False):
     try:
         computed = _fetch_computed()
     except FetchError as exc:
@@ -523,6 +682,13 @@ def cmd_run(ci=False):
             )
         if len(drifted) > 5:
             print("  ... and %d more" % (len(drifted) - 5), file=sys.stderr)
+        if strict:
+            print(
+                "error: refusing to append to a drifted series; "
+                "run `python vallmon.py rebuild` first.",
+                file=sys.stderr,
+            )
+            return 1
 
     added = 0
     backfilled = 0
@@ -554,6 +720,7 @@ def cmd_run(ci=False):
     latest = rows[-1]
     delta = float(latest["delta_sigma"])
     print_reading(latest, delta)
+    print_drawdown(rows)
     print(
         "  (%d new reading%s written to %s)"
         % (added, "" if added == 1 else "s", CSV_PATH.relative_to(ROOT))
@@ -587,6 +754,12 @@ def print_reading(row, delta):
     print("  delta_sigma                  %6.2f   -> %s" % (delta, regime(delta)))
 
 
+def print_drawdown(rows):
+    _, peak, drawdown, signal = drawdown_rows(rows)[-1]
+    print("  peak (trailing %dd)        %8.4f" % (DRAWDOWN_PEAK_WINDOW, peak))
+    print("  drawdown from peak           %6.2f%%   -> %s" % (drawdown * 100, signal))
+
+
 def cmd_history(limit):
     if limit <= 0:
         print("error: --limit must be a positive integer", file=sys.stderr)
@@ -615,6 +788,26 @@ def cmd_history(limit):
     deltas = delta_series(recent)
     print("\n  trend  %s" % sparkline(deltas))
     print("         %.2f -> %.2f" % (deltas[0], deltas[-1]))
+    return 0
+
+
+def cmd_drawdown(limit):
+    if limit <= 0:
+        print("error: --limit must be a positive integer", file=sys.stderr)
+        return 2
+    rows = sorted_rows()
+    if not rows:
+        print("No readings yet; run `python vallmon.py run` first.")
+        return 0
+    recent = drawdown_rows(rows)[-limit:]
+    print("VALL drawdown from trailing peak - last %d readings\n" % len(recent))
+    print("  date         close     peak   drawdown   signal")
+    for row, peak, drawdown, signal in recent:
+        print(
+            "  %s  %6.3f  %7.3f  %8.2f%%   %s"
+            % (row["date"], float(row["close"]), peak, drawdown * 100, signal)
+        )
+    print("\n  history seen  %d of %d readings" % (len(rows), DRAWDOWN_PEAK_WINDOW))
     return 0
 
 
@@ -718,6 +911,12 @@ def build_report(rows):
     lines += term_structure_lines(rows)
     lines += [
         "",
+        "## Drawdown switch",
+        "",
+    ]
+    lines += drawdown_lines(rows)
+    lines += [
+        "",
         "## Full history",
         "",
     ]
@@ -815,9 +1014,21 @@ def main(argv=None):
 
     run_parser = sub.add_parser("run", help="fetch, compute and append the latest reading")
     run_parser.add_argument("--ci", action="store_true", help="also write the GitHub step summary")
+    run_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit non-zero if stored readings disagree with a fresh recompute",
+    )
 
     history_parser = sub.add_parser("history", help="show recent readings")
     history_parser.add_argument(
+        "-n", "--limit", type=int, default=30, help="number of readings (default 30)"
+    )
+
+    drawdown_parser = sub.add_parser(
+        "drawdown", help="show drawdown from the trailing peak and the switch signal"
+    )
+    drawdown_parser.add_argument(
         "-n", "--limit", type=int, default=30, help="number of readings (default 30)"
     )
 
@@ -832,11 +1043,13 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
     if args.command == "run":
-        return cmd_run(ci=args.ci)
+        return cmd_run(ci=args.ci, strict=args.strict)
     if args.command == "rebuild":
         return cmd_rebuild(ci=args.ci)
     if args.command == "history":
         return cmd_history(args.limit)
+    if args.command == "drawdown":
+        return cmd_drawdown(args.limit)
     if args.command == "report":
         return cmd_report()
     parser.error("unknown command")
