@@ -4,171 +4,85 @@ Tracks **VALL** - the Vanguard FTSE Global All-Cap UCITS ETF USD Acc (London
 Stock Exchange: `VALL.L`, ISIN `IE000VAHT5T0`) - and answers one question: in a
 drawdown, should spending come from cash or from the fund?
 
-The answer is a two-threshold switch, with the state recorded alongside every
-reading. The Rolling Variance Delta metric and the short-vs-long volatility
-term structure (σ10/σ20/σ30/σ60) are reported as context: they describe
-dispersion, not direction, and never change the switch.
-
-## Current reading
+It is a two-threshold switch whose state is recorded alongside every reading.
+The Rolling Variance Delta and the volatility term structure are reported as
+context: they describe dispersion, not direction, and never change the switch.
+[How the numbers work →](docs/methodology.md)
 
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Equity** · -3.63% from peak · **Δσ = 0.89** 🔵 compressing · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
+_As of 2026-10-22 · 23 readings · 2026-09-22 → 2026-10-22_
 
-`▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` · [Full report →](REPORT.md)
+## State
+
+**Equity** — drawdown -3.63%, unchanged for 23 readings (since 2026-09-22).
+
+No action. Switch to cash at -15% — a further 11.4 pp.
+
+> Window: 23 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-18.
+
+## Signal history
+
+_No state changes yet — the switch has been in **equity** since the first reading._
+
+## Drawdown
+
+| Metric | Value |
+|--------|-------|
+| Peak (trailing 756d) | 3.7925 (2026-10-06) |
+| Current drawdown | -3.63% |
+| Distance to switch | 11.4 pp |
+| History seen | 23 of 756 readings |
+
+_Rule: switch to cash at or below -15% of the trailing peak; return to equity at or above -5%._
+
+## Volatility context
+
+| Metric | Value |
+|--------|-------|
+| Δσ | 0.89 🔵 compressing |
+| Current σ (W=20, ann.) | 9.36% |
+| Baseline μ (N≤90) | 10.47% |
+| Term slope σ10/σ30 | 0.82 (contango) |
+| Latest volume | 8,669,701 units |
+| Δσ min / max / median | 0.80 / 1.04 / 0.97 |
+
+**Δσ trend** `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` 1.01 → 0.89 (range 0.80–1.04, 23 readings)
+
+**Term structure** (σ ann.): 10d 8.65% · 20d 9.36% · 30d 10.53% · 60d —
+
+_Volatility labels are sticky: a band must hold for 3 readings before the label changes._
+
+## Recent readings
+
+| Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
+|------|-------------|-------|----------|-------|--------|-----|------------|
+| 2026-10-22 | 3.655 | 🟥-1.18% | -3.63% | equity | hold | 0.89 | 🔵 compressing |
+| 2026-10-21 | 3.699 | 🟩+0.31% | -2.48% | equity | hold | 0.82 | 🔵 compressing |
+| 2026-10-20 | 3.687 | 🟥-0.46% | -2.78% | equity | hold | 0.80 | 🟢 normal |
+| 2026-10-19 | 3.704 | 🟩+0.14% | -2.33% | equity | hold | 0.82 | 🟢 normal |
+| 2026-10-16 | 3.699 | 🟥-0.54% | -2.47% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-15 | 3.719 | 🟥-0.88% | -1.94% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-14 | 3.752 | 🟥-0.05% | -1.07% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-13 | 3.754 | 🟥-0.53% | -1.02% | equity | hold | 0.97 | 🟢 normal |
+| 2026-10-12 | 3.774 | 🟩+0.25% | -0.49% | equity | hold | 0.97 | 🟢 normal |
+| 2026-10-09 | 3.764 | 🟩+0.41% | -0.74% | equity | hold | 1.00 | 🟢 normal |
+| 2026-10-08 | 3.749 | 🟥-0.44% | -1.15% | equity | hold | 1.02 | 🟢 normal |
+| 2026-10-07 | 3.765 | 🟥-0.71% | -0.71% | equity | hold | 1.02 | 🟢 normal |
+| 2026-10-06 | 3.792 | 🟩+0.37% | 0.00% | equity | hold | 1.04 | 🟢 normal |
+| 2026-10-05 | 3.779 | 🟩+0.65% | 0.00% | equity | hold | 1.04 | 🟢 normal |
+| 2026-10-02 | 3.754 | 🟩+1.04% | -0.42% | equity | hold | 1.03 | 🟢 normal |
+| 2026-10-01 | 3.716 | 🟥-0.66% | -1.45% | equity | hold | 0.96 | 🟢 normal |
+| 2026-09-30 | 3.740 | 🟥-0.01% | -0.80% | equity | hold | 0.95 | 🟢 normal |
+| 2026-09-29 | 3.740 | 🟩+0.12% | -0.78% | equity | hold | 0.95 | 🟢 normal |
+| 2026-09-28 | 3.736 | 🟥-0.74% | -0.90% | equity | hold | 1.03 | 🟢 normal |
+| 2026-09-25 | 3.764 | 🟩+0.51% | -0.16% | equity | hold | 1.03 | 🟢 normal |
+
+_Last 20 of 23 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
+
+_How these are computed: [docs/methodology.md](docs/methodology.md)._
 <!-- REPORT:END -->
-
-## Methodology
-
-The Rolling Variance Delta measures how far current realized volatility has
-expanded or compressed relative to its immediate historical baseline:
-
-```
-delta_sigma = sigma_current / mu_sigma(t - N)
-```
-
-1. **Daily log returns:** `r_t = ln(P_t / P_{t-1})`
-2. **Current volatility:** `sigma_t = stdev(r_{t-W+1 .. t}) * sqrt(252)` -
-   annualized realized volatility over `W = 20` trading days (sample standard
-   deviation, i.e. the `n-1` denominator).
-3. **Baseline:** `mu = mean(sigma_{t-N .. t-1})` - the trailing mean of the
-   volatility profile over `N = min(90, available)` days (adaptive; grows into a
-   full 90-day baseline as history accrues).
-4. **Reading:** `delta_sigma = sigma_t / mu` - a value above 1 means volatility
-   is expanding, below 1 means it is compressing.
-
-### Volatility labels
-
-| delta_sigma | Label |
-|-------------|-------|
-| >= 1.5 | elevated |
-| 1.15 - 1.5 | expanding |
-| 0.85 - 1.15 | normal |
-| 0.7 - 0.85 | compressing |
-| < 0.7 | compressed |
-
-The labels describe the *size* of recent moves, not their direction: a steady
-climb in small daily steps is "compressing", just as a steady fall in small
-steps is. They are derived context, not a recorded signal - nothing acts on
-them, so re-rendering history under changed bands is acceptable (unlike the
-switch state, which is stored).
-
-They are also **sticky**: a band must hold for `VOLATILITY_CONFIRM` readings
-(3) before the label moves. delta_sigma crosses a band edge on ordinary noise,
-and without that rule a single quiet session re-labels the series and implies a
-change in conditions that did not happen. Consequence: after a genuine turn the
-label lags the raw value by up to two readings.
-
-### Volatility term structure
-
-The same realized-vol calculation is also evaluated over several windows -
-`W ∈ {10, 20, 30, 60}` trading days - to show the *shape* of the volatility
-curve. `W = 20` remains the primary window for Δσ; the other legs are
-supplementary.
-
-The headline term-structure signal is the **slope**:
-
-```
-slope = sigma_10 / sigma_30
-```
-
-- **> 1.05 -> backwardated:** short-term vol sits above longer-term vol, the
-  classic stress shape (short-dated uncertainty priced above the trend).
-- **0.95 - 1.05 -> flat:** the curve is broadly level.
-- **< 0.95 -> contango:** short-term vol is below longer-term vol, the calm
-  shape (recent markets quieter than the trailing window).
-
-A window only produces a value once that many trading days of returns exist, so
-the longer legs (30d, 60d) appear as an em dash until enough history accrues -
-the same adaptive behavior as the baseline.
-
-### Drawdown switch
-
-`delta_sigma` measures dispersion, not direction, so it cannot tell you whether
-to sell. The drawdown rule answers a narrower question that *is* answerable -
-which asset to sell from:
-
-```
-drawdown = close / peak - 1        peak = max close over the trailing 756d
-```
-
-The switch is a two-boundary state machine rather than a single threshold. The
-state carries forward from the previous reading:
-
-| State | Entered when | Signal |
-|----------------------|------------------------------|--------------------|
-| **cash** | drawdown at or below -15% | **draw from cash** |
-| **equity** | drawdown at or above -5% | **refill** |
-| unchanged | anything in between | **hold** |
-
-The band exists because a single threshold is crossed roughly three times a
-year on long history, which is not a state a spending decision can follow; the
-15% -> 5% gap is the hysteresis that keeps it stable. A new high (drawdown 0)
-is inside the re-arm band, so it also returns the switch to equity.
-
-Unlike delta-sigma this has no baseline, no fitted parameters and no forecast:
-it is an observable state of the price series, so it cannot drift the way a
-rolling statistic can. `python vallmon.py drawdown` prints the recent series
-and the current state; `--annual-spend` additionally translates the current
-cash episode into the number of months and amount of spending it covers.
-
-The state is **recorded, not derived**: each reading stores the `mode` it was
-written with, and the report reads that back. Re-parameterising the thresholds
-therefore changes future signals only - it cannot rewrite the history of what
-the monitor actually said. `rebuild` preserves the recorded state for the same
-reason; pass `--reset-switch` if you deliberately want it re-derived under the
-current thresholds.
-
-`python vallmon.py backtest VT --years 18` replays the same rule over any
-long-history Yahoo symbol and summarises the cash episodes it would have
-produced. It is read-only and never touches the ticker's CSV.
-
-The peak window is ~3 years, so until that much history exists the rule is
-running on a partial window - the report states how many readings it has seen.
-The window and both thresholds are **provisional defaults** (three years, 15%,
-5%), not calibrated parameters; treat a signal as information rather than a
-validated trigger.
-
-### Data & caveats
-
-- **Source:** Yahoo Finance `VALL.L` daily closes (GBP). Rows with a null close
-  or zero volume (new-listing placeholders) are dropped, and several bars for
-  one session are collapsed to the last close with summed volume. That collapse
-  is a backstop: Yahoo serves `range=max` at *hourly* granularity for this
-  ticker (observed 2026-10), which would silently turn the daily returns series
-  into an intraday one. The fetch therefore checks the declared granularity and
-  retries with a bounded range (`range=20y`) that it does serve daily.
-- **Volume:** each row also records that day's traded volume in ETF units
-  (Yahoo's `volume` field) as context for the reading. It is *not* part of the
-  Δσ metric, and it is a unit count, not a cash amount - turnover is roughly
-  `volume × close`. Rows written before the column existed are backfilled from
-  source the next time `run`/`rebuild` executes.
-- **Currency:** `VALL.L` trades in GBP, so delta_sigma includes some GBP/USD FX
-  noise on top of pure equity volatility.
-- **Short history:** VALL's share class incepted on 18 Aug 2026, so early
-  readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027);
-  the 60-day term-structure leg stays empty until ~mid-November 2026.
-- **Switch state:** each row also stores the `mode` (`equity` or `cash`) that
-  was signalled when it was written. It is a record, not a metric: it is never
-  drift-checked, because recomputing it under new thresholds would rewrite the
-  signal history. Rows written before the column existed are backfilled once,
-  from a recompute under the current thresholds, the next time `run` or
-  `rebuild` executes. A partially-recorded series (some rows with a state,
-  some without) warns and falls back to a recompute rather than mixing the two.
-- **Reproducibility:** each row is written once and never silently rewritten. If
-  Yahoo later revises a historical close, `run` prints a drift warning (checked
-  against the primary σ, baseline, Δσ and every term-structure leg); `--strict`
-  makes that warning fatal so CI cannot commit a drifted series, and
-  `python vallmon.py rebuild` recomputes the whole series from source.
-  `tests/test_vallmon.py` additionally re-derives every committed reading from
-  its own `close` column, so a series built from a different price source fails
-  the test suite rather than quietly producing readings.
-- **Partial bars:** a bar captured before the 16:30 London close is incomplete,
-  so `fetch_prices` drops the current session and the next run picks it up. The
-  scheduled 18:00 UTC run is safely after the close. `rebuild` is consequently
-  time-of-day dependent: running it at 14:00 and at 18:00 on the same day
-  produces different CSVs, by design.
 
 ## Setup
 
@@ -184,7 +98,7 @@ python vallmon.py rebuild         # recompute the whole series from source (over
 python vallmon.py history         # recent readings with a trend sparkline
 python vallmon.py drawdown        # drawdown from the trailing peak + switch state
 python vallmon.py backtest VT     # replay the switch over a long history (read-only)
-python vallmon.py report          # regenerate the "Current reading" section above
+python vallmon.py report          # regenerate the findings section above
 ```
 
 ### Development
@@ -197,20 +111,20 @@ ruff check . && mypy && python -m pytest   # from the repository root
 ### Scheduled (GitHub Actions)
 
 `.github/workflows/vallmon.yml` runs weekdays at 18:00 UTC (after the London
-close). It appends the day's reading to `data/delta_sigma.csv`, regenerates this
-report, and commits both back to the repository. Enable it by pushing the repo
-to GitHub; runs can also be triggered manually from the Actions tab. Pushes and
-pull requests additionally run a lint/type-check/test job; the data-update job
-only runs on the schedule or a manual dispatch.
+close). It appends the day's reading to `data/delta_sigma.csv`, regenerates the
+findings above, and commits both back to the repository. Enable it by pushing
+the repo to GitHub; runs can also be triggered manually from the Actions tab.
+Pushes and pull requests additionally run a lint/type-check/test job; the
+data-update job only runs on the schedule or a manual dispatch.
 
 ## Files
 
 | Path | Purpose |
 |------|---------|
 | `vallmon.py` | fetch -> clean -> compute -> append -> report |
-| `data/delta_sigma.csv` | append-only metric log (Δσ, daily volume, term-structure σ) |
-| `README.md` | this file; the report section is auto-updated |
-| `REPORT.md` | full auto-generated report (summary + full history) |
+| `data/delta_sigma.csv` | append-only metric log (Δσ, daily volume, switch state, term-structure σ) |
+| `README.md` | this file; the findings section is auto-updated |
+| `docs/methodology.md` | how the metrics are computed and what they mean |
 | `tests/test_vallmon.py` | unit tests for the metric, fetch, persistence and CLI |
 | `.github/workflows/vallmon.yml` | daily scheduler + lint/type-check/test job |
 | `requirements.txt` | runtime dependencies (`tzdata`) |

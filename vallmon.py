@@ -20,7 +20,7 @@ Commands:
     history   show recent readings with a trend sparkline
     drawdown  show the drawdown switch state and how much cash it implies
     backtest  replay the switch over a long proxy history (read-only)
-    report    regenerate the "Current reading" section of README.md
+    report    regenerate the findings section of README.md
 """
 
 from __future__ import annotations
@@ -92,14 +92,12 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 CSV_PATH = DATA_DIR / "delta_sigma.csv"
 README_PATH = ROOT / "README.md"
-REPORT_PATH = ROOT / "REPORT.md"
 
 REPORT_START = "<!-- REPORT:START -->"
 REPORT_END = "<!-- REPORT:END -->"
 
-SPARK_WIDTH = 60   # sparkline length in the full report
-README_SPARK = 30  # sparkline length in the README summary
-REPORT_READING_ROWS = 20  # recent rows kept in REPORT.md; the CSV holds the rest
+SPARK_WIDTH = 60   # sparkline length in the report section
+REPORT_READING_ROWS = 20  # recent rows kept in README; the CSV holds the rest
 
 # Supplementary term-structure columns: the primary window keeps its historical
 # name (`sigma_annualized`).
@@ -1433,33 +1431,10 @@ def readings_table(rows, limit=REPORT_READING_ROWS):
     return lines
 
 
-def build_readme_section(rows):
-    latest = rows[-1]
-    reading = drawdown_rows(rows)[-1]
-    slope = term_slope(latest)
-    return "\n".join(
-        [
-            "**%s** · %.2f%% from peak · %s · TS σ%d/σ%d %s"
-            % (
-                reading.mode.capitalize(),
-                reading.drawdown * 100,
-                reading_headline(latest, volatility_labels(delta_series(rows))[-1]),
-                TERM_SHORT,
-                TERM_LONG,
-                slope_display(slope),
-            ),
-            "",
-            "`%s` · [Full report →](REPORT.md)"
-            % sparkline(delta_series(rows)[-README_SPARK:]),
-        ]
-    )
-
-
-def build_report(rows):
+def build_report_section(rows):
+    """The findings spliced into README.md between the report markers."""
     latest = rows[-1]
     lines = [
-        "# VALL drawdown monitor",
-        "",
         "_As of %s · %d readings · %s → %s_"
         % (latest["date"], len(rows), rows[0]["date"], latest["date"]),
         "",
@@ -1480,9 +1455,7 @@ def build_report(rows):
         "_Last %d of %d readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._"
         % (min(REPORT_READING_ROWS, len(rows)), len(rows)),
         "",
-        "## Methodology",
-        "",
-        "See [README.md → Methodology](README.md#methodology).",
+        "_How these are computed: [docs/methodology.md](docs/methodology.md)._",
     ]
     return "\n".join(lines)
 
@@ -1509,13 +1482,12 @@ def cmd_report():
     _, tail = remainder.split(REPORT_END, 1)
     _write_text_atomic(
         README_PATH,
-        "%s%s\n%s\n%s" % (head, REPORT_START, build_readme_section(rows), REPORT_END + tail),
+        "%s%s\n%s\n%s" % (head, REPORT_START, build_report_section(rows), REPORT_END + tail),
     )
-    _write_text_atomic(REPORT_PATH, build_report(rows) + "\n")
 
     print(
-        "Updated %s (concise) and %s (full) - %d readings."
-        % (README_PATH.name, REPORT_PATH.name, len(rows))
+        "Updated %s - %d reading%s."
+        % (README_PATH.name, len(rows), "" if len(rows) == 1 else "s")
     )
     return 0
 
@@ -1638,7 +1610,7 @@ def main(argv=None):
         "--sweep", action="store_true", help="also sweep the enter/exit thresholds"
     )
 
-    sub.add_parser("report", help="regenerate the README report section")
+    sub.add_parser("report", help="regenerate the findings section of README.md")
 
     rebuild_parser = sub.add_parser(
         "rebuild", help="recompute the whole series from source and overwrite the CSV"

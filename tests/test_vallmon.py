@@ -780,16 +780,16 @@ def test_context_lines_render_term_structure():
     assert "60d —" in text
 
 
-def test_build_readme_section_includes_term_slope():
+def test_build_report_section_includes_term_slope():
     rows = vallmon.sorted_rows({"2026-01-02": _term_formatted_row()})
-    section = vallmon.build_readme_section(rows)
-    assert "TS σ10/σ30 1.10" in section
+    section = vallmon.build_report_section(rows)
+    assert "| Term slope σ10/σ30 | 1.10 (backwardated) |" in section
 
 
-def test_build_readme_section_shows_dash_when_slope_unavailable():
+def test_build_report_section_shows_dash_when_slope_unavailable():
     row = _term_formatted_row(sigma10=None, sigma30=None)
     rows = vallmon.sorted_rows({"2026-01-02": row})
-    assert "TS σ10/σ30 \u2014" in vallmon.build_readme_section(rows)
+    assert "| Term slope σ10/σ30 | — (n/a) |" in vallmon.build_report_section(rows)
 
 
 def test_compute_rows_emits_declared_csv_fields():
@@ -886,9 +886,9 @@ def test_summary_lines_show_units_or_bare_dash():
     assert "| Latest volume | \u2014 |" in unknown
 
 
-def test_build_readme_section_includes_units():
+def test_build_report_section_includes_units():
     rows = vallmon.sorted_rows({"2026-01-02": _formatted_row(7137211)})
-    section = vallmon.build_readme_section(rows)
+    section = vallmon.build_report_section(rows)
     assert "7,137,211 units" in section
 
 
@@ -938,10 +938,9 @@ def test_write_text_atomic_replaces_and_cleans_up(tmp_path):
     assert not (tmp_path / "out.txt.tmp").exists()
 
 
-def test_reading_headline_matches_readme_and_step_summary(monkeypatch, tmp_path, capsys):
+def test_reading_headline_appears_in_the_step_summary(monkeypatch, tmp_path, capsys):
     rows = vallmon.sorted_rows({"2026-01-02": _term_formatted_row()})
     headline = vallmon.reading_headline(rows[-1])
-    assert headline in vallmon.build_readme_section(rows)
 
     summary_path = tmp_path / "summary.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_path))
@@ -1199,10 +1198,9 @@ def _seeded_report(tmp_path, monkeypatch):
     monkeypatch.setattr(vallmon, "DATA_DIR", tmp_path)
     monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
     monkeypatch.setattr(vallmon, "README_PATH", tmp_path / "README.md")
-    monkeypatch.setattr(vallmon, "REPORT_PATH", tmp_path / "REPORT.md")
 
 
-def test_cmd_report_splices_the_marker_section(tmp_path, monkeypatch, capsys):
+def test_cmd_report_splices_the_findings_into_readme(tmp_path, monkeypatch, capsys):
     _seeded_report(tmp_path, monkeypatch)
     vallmon.save_rows({"2026-01-02": _term_formatted_row()})
     vallmon.README_PATH.write_text(
@@ -1216,16 +1214,13 @@ def test_cmd_report_splices_the_marker_section(tmp_path, monkeypatch, capsys):
     assert "old content" not in readme
     assert "# Title" in readme and "footer" in readme     # surroundings preserved
     assert vallmon.REPORT_START in readme and vallmon.REPORT_END in readme
-    assert "**Δσ = 1.00**" in readme
+    assert "## State" in readme
+    assert "## Signal history" in readme
+    assert "## Recent readings" in readme
+    assert "| Δσ | 1.00" in readme
+    assert "docs/methodology.md" in readme
     assert not (tmp_path / "README.md.tmp").exists()       # atomic write cleaned up
-
-    report = vallmon.REPORT_PATH.read_text()
-    assert "# VALL drawdown monitor" in report
-    assert "## State" in report
-    assert "## Signal history" in report
-    assert "## Recent readings" in report
-    assert not (tmp_path / "REPORT.md.tmp").exists()
-    assert "1 readings" in capsys.readouterr().out
+    assert "1 reading." in capsys.readouterr().out
 
 
 def test_cmd_report_requires_markers(tmp_path, monkeypatch, capsys):
