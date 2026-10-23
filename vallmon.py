@@ -18,6 +18,7 @@ Commands:
     run       fetch, compute, backfill/append to data/delta_sigma.csv, print
     rebuild   fetch and recompute the whole series from scratch (overwrites CSV)
     history   show recent readings with a trend sparkline
+    drawdown  show the drawdown switch state and how much cash it implies
     report    regenerate the "Current reading" section of README.md
 """
 
@@ -33,9 +34,10 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import time as dt_time
 from pathlib import Path
+from typing import NamedTuple
 from zoneinfo import ZoneInfo
 
 # --- Configuration ----------------------------------------------------------
@@ -60,13 +62,19 @@ TERM_LONG = 30   # denominator window for the term-structure slope
 # no parameters fitted to history and cannot drift the way a rolling statistic
 # can.
 #
-# Both numbers are provisional defaults, not calibrated parameters: 756 days is
-# simply "about three years", and 15% is a conventional correction threshold.
-# They are function arguments so the rule can be re-parameterised without being
-# rewritten - but nothing here has been backtested, so treat a signal as
-# information, not as a validated trigger.
+# The switch has two boundaries rather than one. A single threshold is crossed
+# on every tick that straddles it, which is not something a spending decision
+# can follow; the gap between `enter` and `exit` is the hysteresis that makes
+# the state stable enough to act on.
+#
+# The numbers are provisional defaults, not calibrated parameters: 756 days is
+# simply "about three years", 15% is a conventional correction threshold, and
+# 5% is "recovered enough to re-arm". They are function arguments so the rule
+# can be re-parameterised without being rewritten - but nothing here has been
+# backtested, so treat a signal as information, not as a validated trigger.
 DRAWDOWN_PEAK_WINDOW = 756   # trailing peak, ~3 years of trading days
 DRAWDOWN_THRESHOLD = 0.15    # switch to cash at -15% from the trailing peak
+DRAWDOWN_EXIT_THRESHOLD = 0.05  # return to equity once the drawdown is >= -5%
 
 # London cash close. A bar captured before it is incomplete, so `fetch_prices`
 # drops it rather than freezing a partial session into the append-only log.
@@ -88,6 +96,7 @@ REPORT_END = "<!-- REPORT:END -->"
 
 SPARK_WIDTH = 60   # sparkline length in the full report
 README_SPARK = 30  # sparkline length in the README summary
+REPORT_READING_ROWS = 20  # recent rows kept in REPORT.md; the CSV holds the rest
 
 # Supplementary term-structure columns: the primary window keeps its historical
 # name (`sigma_annualized`).
@@ -382,48 +391,204 @@ def drawdown_series(closes, window=DRAWDOWN_PEAK_WINDOW):
     ]
 
 
-def drawdown_signal(close, peak, threshold=DRAWDOWN_THRESHOLD):
-    """Which asset to sell from, per the pre-committed rule.
+class DrawdownReading(NamedTuple):
+    """One reading paired with the switch state and the transition it implies."""
 
-    - ``refill`` at a new high: top the cash bucket back up.
-    - ``draw from cash`` at or below ``-threshold``: leave the equity alone.
-    - ``hold`` in between: no action, which is the case most of the time.
+    row: dict
+    peak: float
+    drawdown: float
+    mode: str      # "equity" while the switch is armed, "cash" while in use
+    signal: str    # "hold" unless this reading is a transition
+
+
+def drawdown_modes(drawdowns, enter=DRAWDOWN_THRESHOLD, exit=DRAWDOWN_EXIT_THRESHOLD):
+    """Hysteresis state machine over a drawdown series: "equity" or "cash".
+
+    A single threshold flips state on every tick that straddles it - about three
+    times a year on long history - which is not something a spending decision
+    can follow. Two boundaries make the state stable: enter cash at or below
+    ``-enter``, and return to equity only once the drawdown has recovered to
+    ``-exit``. A new high (drawdown 0) is inside that band, so it also re-arms.
+
+    The state is carried forward from the previous reading, so this is the one
+    part of the drawdown rule that needs the whole series rather than a single
+    close/peak pair.
     """
-    if close >= peak:
-        return "refill"
-    if peak > 0 and (peak - close) / peak >= threshold:
-        return "draw from cash"
-    return "hold"
+    if not 0 <= exit <= enter:
+        raise ValueError("require 0 <= exit <= enter")
+    modes = []
+    mode = "equity"
+    for drawdown in drawdowns:
+        if mode == "equity" and drawdown <= -enter:
+            mode = "cash"
+        elif mode == "cash" and drawdown >= -exit:
+            mode = "equity"
+        modes.append(mode)
+    return modes
 
 
-def drawdown_rows(rows, window=DRAWDOWN_PEAK_WINDOW):
-    """[(row, peak, drawdown, signal)] over stored rows, oldest first."""
+def drawdown_rows(
+    rows, window=DRAWDOWN_PEAK_WINDOW, enter=DRAWDOWN_THRESHOLD, exit=DRAWDOWN_EXIT_THRESHOLD
+):
+    """DrawdownReading per stored row, oldest first."""
     closes = [float(row["close"]) for row in rows]
     peaks = trailing_peaks(closes, window)
-    return [
-        (row, peak, close / peak - 1.0, drawdown_signal(close, peak))
-        for row, close, peak in zip(rows, closes, peaks)
-    ]
+    drawdowns = [close / peak - 1.0 if peak else 0.0 for close, peak in zip(closes, peaks)]
+    modes = drawdown_modes(drawdowns, enter, exit)
+    readings = []
+    previous = "equity"
+    for row, peak, drawdown, mode in zip(rows, peaks, drawdowns, modes):
+        if mode == previous:
+            signal = "hold"
+        elif mode == "cash":
+            signal = "draw from cash"
+        else:
+            signal = "refill"
+        readings.append(DrawdownReading(row, peak, drawdown, mode, signal))
+        previous = mode
+    return readings
+
+
+def cash_episode(readings):
+    """(start date, reading count) of the current cash episode, or None.
+
+    Only a cash episode has a length worth reporting: it is the stretch during
+    which spending is coming out of cash, so it is what a cash bucket has to
+    cover.
+    """
+    if not readings or readings[-1].mode != "cash":
+        return None
+    start = len(readings) - 1
+    while start > 0 and readings[start - 1].mode == "cash":
+        start -= 1
+    return readings[start].row["date"], len(readings) - start
+
+
+def current_state_since(readings):
+    """(start date, reading count) of the state the latest reading is in."""
+    mode = readings[-1].mode
+    start = len(readings) - 1
+    while start > 0 and readings[start - 1].mode == mode:
+        start -= 1
+    return readings[start].row["date"], len(readings) - start
+
+
+def transitions(readings):
+    """[(change date, close, from mode, to mode, readings held before)]."""
+    changes = []
+    start = 0
+    for index in range(1, len(readings)):
+        if readings[index].mode == readings[index - 1].mode:
+            continue
+        changes.append(
+            (
+                readings[index].row["date"],
+                float(readings[index].row["close"]),
+                readings[index - 1].mode,
+                readings[index].mode,
+                index - start,
+            )
+        )
+        start = index
+    return changes
+
+
+def window_full_date(rows, window=DRAWDOWN_PEAK_WINDOW):
+    """The date the trailing window is finally full, or None once it is.
+
+    Until then the reported "peak" is just the highest close seen so far, which
+    is not the same thing - so the state is flagged provisional.
+    """
+    remaining = window - len(rows)
+    if remaining <= 0:
+        return None
+    latest = datetime.strptime(rows[-1]["date"], "%Y-%m-%d")
+    days = round(remaining * 365 / TRADING_DAYS_PER_YEAR)
+    return (latest + timedelta(days=days)).date().isoformat()
 
 
 def drawdown_lines(rows, window=DRAWDOWN_PEAK_WINDOW):
-    """Markdown section describing the latest drawdown reading."""
-    _, peak, drawdown, signal = drawdown_rows(rows, window)[-1]
+    """Markdown table of the drawdown inputs behind the switch."""
+    readings = drawdown_rows(rows, window)
+    reading = readings[-1]
     peak_day = next(
-        (row["date"] for row in reversed(rows) if abs(float(row["close"]) - peak) <= 1e-9),
+        (row["date"] for row in reversed(rows) if abs(float(row["close"]) - reading.peak) <= 1e-9),
         "unknown",
     )
+    switch_at = DRAWDOWN_THRESHOLD if reading.mode == "equity" else DRAWDOWN_EXIT_THRESHOLD
     return [
         "| Metric | Value |",
         "|--------|-------|",
-        "| Peak (trailing %dd) | %.4f (%s) |" % (window, peak, peak_day),
-        "| Current drawdown | %.2f%% |" % (drawdown * 100),
+        "| Peak (trailing %dd) | %.4f (%s) |" % (window, reading.peak, peak_day),
+        "| Current drawdown | %.2f%% |" % (reading.drawdown * 100),
+        "| Distance to switch | %.1f pp |" % (abs(-switch_at - reading.drawdown) * 100),
         "| History seen | %d of %d readings |" % (len(rows), window),
-        "| Signal | **%s** |" % signal,
         "",
-        "_Rule: draw from cash at or below -%.0f%% of the trailing peak; "
-        "refill only at a new high._" % (DRAWDOWN_THRESHOLD * 100),
+        "_Rule: switch to cash at or below -%.0f%% of the trailing peak; "
+        "return to equity at or above -%.0f%%._"
+        % (DRAWDOWN_THRESHOLD * 100, DRAWDOWN_EXIT_THRESHOLD * 100),
     ]
+
+
+def state_lines(rows):
+    """The headline: what state, what would change it, how far away it is."""
+    readings = drawdown_rows(rows)
+    reading = readings[-1]
+    since, held = current_state_since(readings)
+    switch_at = DRAWDOWN_THRESHOLD if reading.mode == "equity" else DRAWDOWN_EXIT_THRESHOLD
+    gap = abs(-switch_at - reading.drawdown) * 100
+    if reading.mode == "equity":
+        action = "No action. Switch to cash at -%.0f%% — a further %.1f pp." % (
+            switch_at * 100,
+            gap,
+        )
+    else:
+        action = "Draw from cash. Return to equity at -%.0f%% — a recovery of %.1f pp." % (
+            switch_at * 100,
+            gap,
+        )
+    lines = [
+        "**%s** — drawdown %.2f%%, unchanged for %d reading%s (since %s)."
+        % (
+            reading.mode.capitalize(),
+            reading.drawdown * 100,
+            held,
+            "" if held == 1 else "s",
+            since,
+        ),
+        "",
+        action,
+    ]
+    full = window_full_date(rows)
+    if full:
+        lines += [
+            "",
+            "> Window: %d of %d readings. The peak is not yet a %d-day peak, so"
+            " signals are provisional until ~%s."
+            % (len(rows), DRAWDOWN_PEAK_WINDOW, DRAWDOWN_PEAK_WINDOW, full),
+        ]
+    return lines
+
+
+def signal_history_lines(rows):
+    """Every switch, newest first - the audit trail for the rule."""
+    readings = drawdown_rows(rows)
+    changes = transitions(readings)
+    if not changes:
+        return [
+            "_No state changes yet — the switch has been in **%s** since the first"
+            " reading._" % readings[-1].mode
+        ]
+    lines = [
+        "| Changed | Close (GBP) | From → To | Held before |",
+        "|---------|-------------|------------|-------------|",
+    ]
+    for changed, close, from_mode, to_mode, held in reversed(changes):
+        lines.append(
+            "| %s | %.3f | %s → %s | %d readings (~%.1f mo) |"
+            % (changed, close, from_mode, to_mode, held, held / (TRADING_DAYS_PER_YEAR / 12))
+        )
+    return lines
 
 
 def sparkline(values):
@@ -434,6 +599,21 @@ def sparkline(values):
         return SPARK_CHARS[3] * len(values)
     scale = (len(SPARK_CHARS) - 1) / (high - low)
     return "".join(SPARK_CHARS[min(len(SPARK_CHARS) - 1, int((v - low) * scale))] for v in values)
+
+
+def sparkline_summary(values):
+    """A sparkline with endpoints and range, so it reads without the numbers."""
+    if not values:
+        return "—"
+    return "`%s` %.2f → %.2f (range %.2f–%.2f, %d reading%s)" % (
+        sparkline(values),
+        values[0],
+        values[-1],
+        min(values),
+        max(values),
+        len(values),
+        "" if len(values) == 1 else "s",
+    )
 
 
 # --- Persistence ------------------------------------------------------------
@@ -755,9 +935,13 @@ def print_reading(row, delta):
 
 
 def print_drawdown(rows):
-    _, peak, drawdown, signal = drawdown_rows(rows)[-1]
-    print("  peak (trailing %dd)        %8.4f" % (DRAWDOWN_PEAK_WINDOW, peak))
-    print("  drawdown from peak           %6.2f%%   -> %s" % (drawdown * 100, signal))
+    reading = drawdown_rows(rows)[-1]
+    print("  peak (trailing %dd)        %8.4f" % (DRAWDOWN_PEAK_WINDOW, reading.peak))
+    print(
+        "  drawdown from peak           %6.2f%%   -> %s"
+        % (reading.drawdown * 100, reading.signal)
+    )
+    print("  switch state                %8s" % reading.mode)
 
 
 def cmd_history(limit):
@@ -791,23 +975,51 @@ def cmd_history(limit):
     return 0
 
 
-def cmd_drawdown(limit):
+def cmd_drawdown(limit, annual_spend=None):
     if limit <= 0:
         print("error: --limit must be a positive integer", file=sys.stderr)
+        return 2
+    if annual_spend is not None and annual_spend <= 0:
+        print("error: --annual-spend must be a positive number", file=sys.stderr)
         return 2
     rows = sorted_rows()
     if not rows:
         print("No readings yet; run `python vallmon.py run` first.")
         return 0
-    recent = drawdown_rows(rows)[-limit:]
+    readings = drawdown_rows(rows)
+    recent = readings[-limit:]
     print("VALL drawdown from trailing peak - last %d readings\n" % len(recent))
-    print("  date         close     peak   drawdown   signal")
-    for row, peak, drawdown, signal in recent:
+    print("  date         close     peak   drawdown   mode     signal")
+    for reading in recent:
         print(
-            "  %s  %6.3f  %7.3f  %8.2f%%   %s"
-            % (row["date"], float(row["close"]), peak, drawdown * 100, signal)
+            "  %s  %6.3f  %7.3f  %8.2f%%   %-7s  %s"
+            % (
+                reading.row["date"],
+                float(reading.row["close"]),
+                reading.peak,
+                reading.drawdown * 100,
+                reading.mode,
+                reading.signal,
+            )
         )
     print("\n  history seen  %d of %d readings" % (len(rows), DRAWDOWN_PEAK_WINDOW))
+    print(
+        "  rule          cash at <= -%.0f%%, re-arm at >= -%.0f%%"
+        % (DRAWDOWN_THRESHOLD * 100, DRAWDOWN_EXIT_THRESHOLD * 100)
+    )
+    episode = cash_episode(readings)
+    if episode:
+        start, count = episode
+        months = count / (TRADING_DAYS_PER_YEAR / 12)
+        print("  cash episode  since %s, %d readings (~%.1f months)" % (start, count, months))
+        if annual_spend is not None:
+            print(
+                "  spend covered %s at %s/yr"
+                % (
+                    format(annual_spend * months / 12, ",.0f"),
+                    format(annual_spend, ",.0f"),
+                )
+            )
     return 0
 
 
@@ -819,7 +1031,7 @@ def summary_lines(rows):
     return [
         "| Metric | Value |",
         "|--------|-------|",
-        "| Latest Δσ | %.2f %s (%s) |" % (delta, regime(delta), latest["date"]),
+        "| Δσ | %.2f %s |" % (delta, regime(delta)),
         "| Current σ (W=%d, ann.) | %.2f%% |" % (WINDOW, float(latest["sigma_annualized"]) * 100),
         "| Baseline μ (N≤%d) | %.2f%% |" % (BASELINE, float(latest["baseline_mean"]) * 100),
         "| Term slope σ%d/σ%d | %s (%s) |"
@@ -827,47 +1039,46 @@ def summary_lines(rows):
         "| Latest volume | %s |" % volume_display(latest, with_units=True),
         "| Δσ min / max / median | %.2f / %.2f / %.2f |"
         % (min(deltas), max(deltas), statistics.median(deltas)),
-        "| Readings | %d |" % len(rows),
     ]
 
 
-def term_structure_lines(rows):
-    """Latest-day σ per window, the headline slope and its sparkline."""
+def context_lines(rows):
+    """Volatility context. Secondary to the switch: it never changes the state."""
     latest = rows[-1]
-    lines = ["| Window | σ (ann.) |", "|--------|----------|"]
-    for window in SIGMA_WINDOWS:
-        lines.append("| %dd | %s |" % (window, sigma_display(latest, window)))
-
-    slope = term_slope(latest)
+    deltas = delta_series(rows)
+    term = " · ".join(
+        "%dd %s" % (window, sigma_display(latest, window)) for window in SIGMA_WINDOWS
+    )
+    lines = summary_lines(rows)
     lines += [
         "",
-        "**Term slope σ%d/σ%d: %s (%s)**"
-        % (TERM_SHORT, TERM_LONG, slope_display(slope), term_slope_label(slope)),
+        "**Δσ trend** " + sparkline_summary(deltas[-SPARK_WIDTH:]),
+        "",
+        "**Term structure** (σ ann.): %s" % term,
     ]
-    slope_series = [s for s in (term_slope(row) for row in rows) if s is not None]
-    if slope_series:
-        lines += ["", "`%s`" % sparkline(slope_series[-SPARK_WIDTH:])]
     return lines
 
 
-def history_table(rows):
+def readings_table(rows, limit=REPORT_READING_ROWS):
+    """The decision-relevant columns for the most recent readings, newest first."""
+    readings = drawdown_rows(rows)[-limit:]
     lines = [
-        "| Date | Close (GBP) | Volume (units) | σ %dd (ann.) | Baseline μ | Δσ | Regime |"
-        % WINDOW,
-        "|------|-------------|----------------|-----------------|------------|-----|--------|",
+        "| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Regime |",
+        "|------|-------------|----------|-------|--------|-----|--------|",
     ]
-    for row in reversed(rows):
-        value = float(row["delta_sigma"])
+    for reading in reversed(readings):
+        row = reading.row
+        delta = float(row["delta_sigma"])
         lines.append(
-            "| %s | %.3f | %s | %.2f%% | %.2f%% | %.2f | %s |"
+            "| %s | %.3f | %.2f%% | %s | %s | %.2f | %s |"
             % (
                 row["date"],
                 float(row["close"]),
-                volume_display(row),
-                float(row["sigma_annualized"]) * 100,
-                float(row["baseline_mean"]) * 100,
-                value,
-                regime(value),
+                reading.drawdown * 100,
+                reading.mode,
+                reading.signal,
+                delta,
+                regime(delta),
             )
         )
     return lines
@@ -875,53 +1086,55 @@ def history_table(rows):
 
 def build_readme_section(rows):
     latest = rows[-1]
+    reading = drawdown_rows(rows)[-1]
     slope = term_slope(latest)
-    trend = " · TS σ%d/σ%d %s" % (TERM_SHORT, TERM_LONG, slope_display(slope))
     return "\n".join(
         [
-            reading_headline(latest) + trend,
+            "**%s** · %.2f%% from peak · %s · TS σ%d/σ%d %s"
+            % (
+                reading.mode.capitalize(),
+                reading.drawdown * 100,
+                reading_headline(latest),
+                TERM_SHORT,
+                TERM_LONG,
+                slope_display(slope),
+            ),
             "",
-            "`%s` · [Full report →](REPORT.md)" % sparkline(delta_series(rows)[-README_SPARK:]),
+            "`%s` · [Full report →](REPORT.md)"
+            % sparkline(delta_series(rows)[-README_SPARK:]),
         ]
     )
 
 
 def build_report(rows):
     latest = rows[-1]
-    deltas = delta_series(rows)
     lines = [
-        "# VALL Rolling Variance Delta — Full Report",
+        "# VALL drawdown monitor",
         "",
         "_As of %s · %d readings · %s → %s_"
         % (latest["date"], len(rows), rows[0]["date"], latest["date"]),
         "",
-        "## Summary",
+        "## State",
         "",
     ]
-    lines += summary_lines(rows)
-    lines += [
-        "",
-        "## Trend",
-        "",
-        "`%s`" % sparkline(deltas[-SPARK_WIDTH:]),
-        "",
-        "## Volatility term structure",
-        "",
-    ]
-    lines += term_structure_lines(rows)
-    lines += [
-        "",
-        "## Drawdown switch",
-        "",
-    ]
+    lines += state_lines(rows)
+    lines += ["", "## Signal history", ""]
+    lines += signal_history_lines(rows)
+    lines += ["", "## Drawdown", ""]
     lines += drawdown_lines(rows)
+    lines += ["", "## Volatility context", ""]
+    lines += context_lines(rows)
+    lines += ["", "## Recent readings", ""]
+    lines += readings_table(rows)
     lines += [
         "",
-        "## Full history",
+        "_Last %d of %d readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._"
+        % (min(REPORT_READING_ROWS, len(rows)), len(rows)),
         "",
+        "## Methodology",
+        "",
+        "See [README.md → Methodology](README.md#methodology).",
     ]
-    lines += history_table(rows)
-    lines += ["", "## Methodology", "", "See [README.md → Methodology](README.md#methodology)."]
     return "\n".join(lines)
 
 
@@ -1031,6 +1244,12 @@ def main(argv=None):
     drawdown_parser.add_argument(
         "-n", "--limit", type=int, default=30, help="number of readings (default 30)"
     )
+    drawdown_parser.add_argument(
+        "--annual-spend",
+        type=float,
+        default=None,
+        help="annual spend used to translate the current cash episode into months of cover",
+    )
 
     sub.add_parser("report", help="regenerate the README report section")
 
@@ -1049,7 +1268,7 @@ def main(argv=None):
     if args.command == "history":
         return cmd_history(args.limit)
     if args.command == "drawdown":
-        return cmd_drawdown(args.limit)
+        return cmd_drawdown(args.limit, args.annual_spend)
     if args.command == "report":
         return cmd_report()
     parser.error("unknown command")

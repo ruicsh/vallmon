@@ -401,16 +401,33 @@ def test_drawdown_series_measures_from_the_peak():
     assert drawdowns[4] == pytest.approx(96 / 120 - 1)
 
 
-def test_drawdown_signal_three_states():
-    assert vallmon.drawdown_signal(120, 120) == "refill"
-    assert vallmon.drawdown_signal(110, 120) == "hold"
-    assert vallmon.drawdown_signal(102, 120) == "draw from cash"   # exactly -15%
-    assert vallmon.drawdown_signal(101, 120) == "draw from cash"
+def test_drawdown_modes_enter_at_the_threshold():
+    assert vallmon.drawdown_modes([0.0, -0.14, -0.15, -0.16]) == [
+        "equity",
+        "equity",
+        "cash",
+        "cash",
+    ]
 
 
-def test_drawdown_signal_threshold_is_configurable():
-    assert vallmon.drawdown_signal(90, 100, threshold=0.05) == "draw from cash"
-    assert vallmon.drawdown_signal(90, 100, threshold=0.15) == "hold"
+def test_drawdown_modes_stay_in_cash_between_the_two_thresholds():
+    # A single threshold flips on every tick around -15%; the band keeps the
+    # state stable until the drawdown has genuinely recovered.
+    drawdowns = [0.0, -0.16, -0.10, -0.06, -0.04, -0.10, 0.0]
+    assert vallmon.drawdown_modes(drawdowns) == [
+        "equity",
+        "cash",
+        "cash",
+        "cash",
+        "equity",
+        "equity",
+        "equity",
+    ]
+
+
+def test_drawdown_modes_reject_inverted_thresholds():
+    with pytest.raises(ValueError):
+        vallmon.drawdown_modes([0.0], enter=0.05, exit=0.15)
 
 
 def test_drawdown_rows_pair_each_reading_with_its_signal():
@@ -421,11 +438,33 @@ def test_drawdown_rows_pair_each_reading_with_its_signal():
         }
     )
     out = vallmon.drawdown_rows(rows)
-    assert [entry[0]["date"] for entry in out] == ["2026-01-02", "2026-01-03"]
-    assert [entry[3] for entry in out] == ["refill", "draw from cash"]
+    assert [entry.row["date"] for entry in out] == ["2026-01-02", "2026-01-03"]
+    assert [entry.signal for entry in out] == ["hold", "draw from cash"]
+    assert [entry.mode for entry in out] == ["equity", "cash"]
 
 
-def test_drawdown_lines_report_peak_and_signal():
+def test_cash_episode_reports_the_current_stretch():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.0),
+            "2026-01-04": _close_row("2026-01-04", 3.1),
+        }
+    )
+    assert vallmon.cash_episode(vallmon.drawdown_rows(rows)) == ("2026-01-03", 2)
+
+
+def test_cash_episode_is_none_while_armed():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.9),
+        }
+    )
+    assert vallmon.cash_episode(vallmon.drawdown_rows(rows)) is None
+
+
+def test_drawdown_lines_report_peak_and_distance():
     rows = vallmon.sorted_rows(
         {
             "2026-01-02": _close_row("2026-01-02", 4.0),
@@ -435,8 +474,42 @@ def test_drawdown_lines_report_peak_and_signal():
     text = "\n".join(vallmon.drawdown_lines(rows))
     assert "| Peak (trailing 756d) | 4.0000 (2026-01-02) |" in text
     assert "| Current drawdown | -20.00% |" in text
+    assert "| Distance to switch | 15.0 pp |" in text
     assert "| History seen | 2 of 756 readings |" in text
-    assert "| Signal | **draw from cash** |" in text
+    assert "return to equity at or above -5%" in text
+
+
+def test_state_lines_lead_with_the_state_and_the_distance():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.9),
+        }
+    )
+    text = "\n".join(vallmon.state_lines(rows))
+    assert text.startswith("**Equity** — drawdown -2.50%")
+    assert "unchanged for 2 readings (since 2026-01-02)" in text
+    assert "a further 12.5 pp" in text
+    assert "signals are provisional until ~" in text
+
+
+def test_signal_history_lists_transitions():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.0),
+            "2026-01-04": _close_row("2026-01-04", 3.9),
+        }
+    )
+    text = "\n".join(vallmon.signal_history_lines(rows))
+    assert "| Changed | Close (GBP) | From → To | Held before |" in text
+    assert "equity → cash" in text
+    assert "cash → equity" in text
+
+
+def test_signal_history_says_none_yet():
+    rows = vallmon.sorted_rows({"2026-01-02": _close_row("2026-01-02", 4.0)})
+    assert "No state changes yet" in "\n".join(vallmon.signal_history_lines(rows))
 
 
 # --- term structure ---------------------------------------------------------
@@ -547,13 +620,14 @@ def test_format_blanks_missing_term_windows():
     assert formatted["sigma_60"] == ""
 
 
-def test_term_structure_lines_render():
+def test_context_lines_render_term_structure():
     rows = vallmon.sorted_rows({"2026-01-02": _term_formatted_row()})
-    text = "\n".join(vallmon.term_structure_lines(rows))
-    assert "| Window | σ (ann.) |" in text
-    assert "| 10d | 11.00% |" in text
-    assert "| 60d | \u2014 |" in text
-    assert "Term slope σ10/σ30: 1.10 (backwardated)" in text
+    text = "\n".join(vallmon.context_lines(rows))
+    assert "| Δσ |" in text
+    assert "| Term slope σ10/σ30 | 1.10 (backwardated) |" in text
+    assert "**Term structure** (σ ann.):" in text
+    assert "10d 11.00%" in text
+    assert "60d —" in text
 
 
 def test_build_readme_section_includes_term_slope():
@@ -935,8 +1009,10 @@ def test_cmd_report_splices_the_marker_section(tmp_path, monkeypatch, capsys):
     assert not (tmp_path / "README.md.tmp").exists()       # atomic write cleaned up
 
     report = vallmon.REPORT_PATH.read_text()
-    assert "# VALL Rolling Variance Delta — Full Report" in report
-    assert "## Full history" in report
+    assert "# VALL drawdown monitor" in report
+    assert "## State" in report
+    assert "## Signal history" in report
+    assert "## Recent readings" in report
     assert not (tmp_path / "REPORT.md.tmp").exists()
     assert "1 readings" in capsys.readouterr().out
 
@@ -1000,6 +1076,27 @@ def test_cmd_drawdown_prints_recent_rows(tmp_path, monkeypatch, capsys):
 def test_cmd_drawdown_rejects_nonpositive_limit(capsys):
     assert vallmon.cmd_drawdown(0) == 2
     assert "--limit" in capsys.readouterr().err
+
+
+def test_cmd_drawdown_translates_the_episode_into_cover(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "CSV_PATH", tmp_path / "delta_sigma.csv")
+    vallmon.save_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 3.2),
+        }
+    )
+
+    assert vallmon.cmd_drawdown(5, annual_spend=50000) == 0
+    out = capsys.readouterr().out
+    assert "cash episode  since 2026-01-03, 1 reading" in out
+    assert "spend covered" in out
+    assert "at 50,000/yr" in out
+
+
+def test_cmd_drawdown_rejects_nonpositive_annual_spend(capsys):
+    assert vallmon.cmd_drawdown(5, annual_spend=0) == 2
+    assert "--annual-spend" in capsys.readouterr().err
 
 
 def test_cmd_drawdown_without_readings(tmp_path, monkeypatch, capsys):

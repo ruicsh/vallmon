@@ -10,7 +10,7 @@ short-vs-long volatility term structure (σ10/σ20/σ30/σ60).
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-**Δσ = 0.89** 🟢 normal · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
+**Equity** · -3.63% from peak · **Δσ = 0.89** 🟢 normal · 9.36% vol vs 10.47% baseline · 8,669,701 units · 2026-10-22 · TS σ10/σ30 0.82
 
 `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃` · [Full report →](REPORT.md)
 <!-- REPORT:END -->
@@ -77,21 +77,31 @@ which asset to sell from:
 drawdown = close / peak - 1        peak = max close over the trailing 756d
 ```
 
-| drawdown | Signal |
-|----------------|-----------------|
-| `>= 0` (new high) | **refill** the cash bucket |
-| `-15% .. 0` | **hold** |
-| `<= -15%` | **draw from cash** |
+The switch is a two-boundary state machine rather than a single threshold. The
+state carries forward from the previous reading:
 
-Unlike Δσ this has no baseline, no fitted parameters and no forecast: it is an
-observable state of the price series, so it cannot drift the way a rolling
-statistic can. `python vallmon.py drawdown` prints the recent series.
+| State | Entered when | Signal |
+|----------------------|------------------------------|--------------------|
+| **cash** | drawdown at or below -15% | **draw from cash** |
+| **equity** | drawdown at or above -5% | **refill** |
+| unchanged | anything in between | **hold** |
+
+The band exists because a single threshold is crossed roughly three times a
+year on long history, which is not a state a spending decision can follow; the
+15% -> 5% gap is the hysteresis that keeps it stable. A new high (drawdown 0)
+is inside the re-arm band, so it also returns the switch to equity.
+
+Unlike delta-sigma this has no baseline, no fitted parameters and no forecast:
+it is an observable state of the price series, so it cannot drift the way a
+rolling statistic can. `python vallmon.py drawdown` prints the recent series
+and the current state; `--annual-spend` additionally translates the current
+cash episode into the number of months and amount of spending it covers.
 
 The peak window is ~3 years, so until that much history exists the rule is
 running on a partial window - the report states how many readings it has seen.
-The window and threshold are **provisional defaults** (three years, 15%), not
-backtested parameters; treat a signal as information rather than a validated
-trigger.
+The window and both thresholds are **provisional defaults** (three years, 15%,
+5%), not backtested parameters; treat a signal as information rather than a
+validated trigger.
 
 ### Data & caveats
 
@@ -138,7 +148,7 @@ python vallmon.py run             # fetch + append + print the latest reading
 python vallmon.py run --strict    # ...but refuse to append if stored rows drifted
 python vallmon.py rebuild         # recompute the whole series from source (overwrites CSV)
 python vallmon.py history         # recent readings with a trend sparkline
-python vallmon.py drawdown        # drawdown from the trailing peak + switch signal
+python vallmon.py drawdown        # drawdown from the trailing peak + switch state
 python vallmon.py report          # regenerate the "Current reading" section above
 ```
 
