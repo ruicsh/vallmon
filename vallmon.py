@@ -19,6 +19,7 @@ Commands:
     rebuild   fetch and recompute the whole series from scratch (overwrites CSV)
     history   show recent readings with a trend sparkline
     drawdown  show the drawdown switch state and how much cash it implies
+    backtest  replay the switch over a long proxy history (read-only)
     report    regenerate the "Current reading" section of README.md
 """
 
@@ -33,7 +34,9 @@ import statistics
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+import warnings
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from pathlib import Path
@@ -109,11 +112,16 @@ CSV_FIELDS = [
     "sigma_annualized",
     "baseline_mean",
     "delta_sigma",
-] + TERM_FIELDS
+] + TERM_FIELDS + ["mode"]
 
 # Fields recomputed from source on every reading. A stored value that disagrees
 # with a fresh recompute is reported as drift (see find_drift).
 METRIC_FIELDS = ["sigma_annualized", "baseline_mean", "delta_sigma"] + TERM_FIELDS
+
+# `mode` is deliberately NOT in METRIC_FIELDS. It is recorded, not derived: the
+# switch state that was actually signalled when the reading was written. It
+# cannot be drift-checked against a recompute because recomputing it under new
+# thresholds would silently rewrite the signal history the log exists to keep.
 
 # Ask for the full available history: `run` merges into the existing CSV but
 # `rebuild` overwrites it, so a short lookback would silently truncate readings
@@ -130,6 +138,16 @@ DAILY_GRANULARITY = "1d"
 YAHOO_URL = (
     "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
     "?range={range_}&interval=1d"
+)
+
+# The backtest replays the rule over an arbitrary long-history proxy and is
+# strictly read-only: it never touches the ticker's CSV. It bounds the window
+# with period1/period2 rather than `range=max`, because Yahoo serves `max` at
+# an unusable granularity for some symbols (see YAHOO_RANGE).
+BACKTEST_DEFAULT_YEARS = 20
+BACKTEST_URL = (
+    "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+    "?period1={start}&period2={end}&interval=1d&events=div%2Csplit"
 )
 USER_AGENT = os.environ.get("VALLMON_USER_AGENT", "Mozilla/5.0 (compatible; vallmon/1.0)")
 
@@ -149,7 +167,7 @@ class FetchError(RuntimeError):
     """Raised when price data cannot be fetched, retrieved or parsed."""
 
 
-def _parse_payload(payload):
+def _parse_payload(payload, require_volume=True):
     """Turn a Yahoo Finance chart payload into a sorted [(iso_date, close, volume)] list.
 
     Volume is the number of ETF units traded that session on the exchange.
@@ -157,6 +175,9 @@ def _parse_payload(payload):
     of zero-volume placeholder bars at the start of a new listing which would
     otherwise corrupt the returns series. Malformed payloads raise FetchError
     rather than surfacing as a raw KeyError/IndexError.
+
+    ``require_volume=False`` keeps bars with no volume, which is what indices
+    and some proxies return; the backtest uses it because it only needs closes.
     """
     chart = payload.get("chart") or {}
     error = chart.get("error")
@@ -174,12 +195,18 @@ def _parse_payload(payload):
     closes = quote.get("close") or []
     volumes = quote.get("volume") or []
 
-    if not len(timestamps) == len(closes) == len(volumes):
+    if len(timestamps) != len(closes) or (
+        require_volume and len(volumes) != len(timestamps)
+    ):
         raise FetchError(
             "Yahoo Finance returned ragged arrays "
             "(timestamps=%d, closes=%d, volumes=%d)"
             % (len(timestamps), len(closes), len(volumes))
         )
+    if not require_volume and len(volumes) != len(timestamps):
+        # Some symbols (indices, a few proxies) carry no volume array at all.
+        # The backtest only needs closes, so pad instead of rejecting them.
+        volumes = [None] * len(timestamps)
 
     tz = ZoneInfo(EXCHANGE_TZ)
     # Collapse to one bar per local date. Yahoo occasionally serves intraday
@@ -193,7 +220,8 @@ def _parse_payload(payload):
         (
             (ts, close, volume)
             for ts, close, volume in zip(timestamps, closes, volumes)
-            if close is not None and volume is not None and volume != 0
+            if close is not None
+            and (not require_volume or (volume is not None and volume != 0))
         ),
         key=lambda bar: bar[0],
     )
@@ -201,7 +229,7 @@ def _parse_payload(payload):
     for ts, close, volume in bars:
         day = datetime.fromtimestamp(ts, tz=tz).date().isoformat()
         prior = by_day.get(day)
-        by_day[day] = (float(close), int(volume) + (prior[1] if prior else 0))
+        by_day[day] = (float(close), int(volume or 0) + (prior[1] if prior else 0))
 
     return [(day, close, units) for day, (close, units) in sorted(by_day.items())]
 
@@ -245,7 +273,7 @@ def _is_daily(payload):
     return granularity is None or granularity == DAILY_GRANULARITY
 
 
-def _fetch_payload(url, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
+def _fetch_payload(url, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF, label=TICKER):
     """GET `url` and decode the JSON, retrying transient failures."""
     last_error = None
     for attempt in range(1, attempts + 1):
@@ -264,7 +292,7 @@ def _fetch_payload(url, attempts=FETCH_ATTEMPTS, backoff=FETCH_BACKOFF):
                 )
                 time.sleep(delay)
     raise FetchError(
-        "failed to fetch %s after %d attempts: %s" % (TICKER, attempts, last_error)
+        "failed to fetch %s after %d attempts: %s" % (label, attempts, last_error)
     )
 
 
@@ -356,6 +384,15 @@ def compute_rows(prices):
         for window in SUPPLEMENTARY_WINDOWS:
             row["sigma_%d" % window] = sigmas[window].get(price_idx)
         rows.append(row)
+
+    # Record the switch state alongside the reading. It is stored rather than
+    # derived at read time, so re-parameterising the thresholds later cannot
+    # rewrite the signal history the log exists to preserve.
+    closes = [row["close"] for row in rows]
+    peaks = trailing_peaks(closes)
+    drawdowns = [close / peak - 1.0 if peak else 0.0 for close, peak in zip(closes, peaks)]
+    for row, mode in zip(rows, drawdown_modes(drawdowns)):
+        row["mode"] = mode
     return rows
 
 
@@ -427,16 +464,43 @@ def drawdown_modes(drawdowns, enter=DRAWDOWN_THRESHOLD, exit=DRAWDOWN_EXIT_THRES
     return modes
 
 
+def _recorded_modes(rows):
+    """The switch states stored with the readings, or None if incomplete.
+
+    Recorded state wins over a recompute. The log is the audit trail, and a
+    later change of threshold must not rewrite what the monitor actually
+    signalled at the time. Rows written before the column existed fall back to
+    a recompute until `run` backfills them.
+    """
+    modes = [row.get("mode") or "" for row in rows]
+    if modes and all(mode in ("equity", "cash") for mode in modes):
+        return modes
+    if any(mode in ("equity", "cash") for mode in modes):
+        warnings.warn(
+            "switch state is only partially recorded; recomputing it for the whole "
+            "series (run `python vallmon.py run` to backfill)",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return None
+
+
 def drawdown_rows(
     rows, window=DRAWDOWN_PEAK_WINDOW, enter=DRAWDOWN_THRESHOLD, exit=DRAWDOWN_EXIT_THRESHOLD
 ):
-    """DrawdownReading per stored row, oldest first."""
+    """DrawdownReading per stored row, oldest first.
+
+    `enter`/`exit` only apply to rows that have no recorded `mode`; recorded
+    state is used as-is.
+    """
     closes = [float(row["close"]) for row in rows]
     peaks = trailing_peaks(closes, window)
     drawdowns = [close / peak - 1.0 if peak else 0.0 for close, peak in zip(closes, peaks)]
-    modes = drawdown_modes(drawdowns, enter, exit)
+    modes = _recorded_modes(rows)
+    if modes is None:
+        modes = drawdown_modes(drawdowns, enter, exit)
     readings = []
-    previous = "equity"
+    previous = modes[0] if modes else "equity"
     for row, peak, drawdown, mode in zip(rows, peaks, drawdowns, modes):
         if mode == previous:
             signal = "hold"
@@ -638,6 +702,7 @@ def _format(row):
     for field in TERM_FIELDS:
         value = row.get(field)
         formatted[field] = "" if value is None else "%.6f" % value
+    formatted["mode"] = row.get("mode") or ""
     return formatted
 
 
@@ -892,6 +957,9 @@ def cmd_run(ci=False, strict=False):
             if not prior.get(field) and row.get(field) is not None:
                 prior[field] = "%.6f" % row[field]
                 row_migrated = True
+        if not prior.get("mode") and row.get("mode"):
+            prior["mode"] = row["mode"]
+            row_migrated = True
         if row_migrated:
             migrated += 1
     save_rows(existing)
@@ -912,7 +980,7 @@ def cmd_run(ci=False, strict=False):
         )
     if migrated:
         print(
-            "  (backfilled term structure for %d existing reading%s)"
+            "  (backfilled derived columns for %d existing reading%s)"
             % (migrated, "" if migrated == 1 else "s")
         )
 
@@ -1020,6 +1088,178 @@ def cmd_drawdown(limit, annual_spend=None):
                     format(annual_spend, ",.0f"),
                 )
             )
+    return 0
+
+
+# --- Backtest ---------------------------------------------------------------
+
+class BacktestEpisode(NamedTuple):
+    """One cash episode produced by replaying the switch."""
+
+    start: str
+    end: str
+    position: int   # where it sits in the replayed series, for the partial-window note
+    readings: int
+    entry: float
+    exit: float
+
+
+class BacktestStats(NamedTuple):
+    """What the switch did across a whole replayed series."""
+
+    bars: int
+    first: str
+    last: str
+    years: float
+    max_drawdown: float
+    cash_share: float
+    switches: int
+    episodes: list
+    worst: float
+
+
+def fetch_history(symbol, years=BACKTEST_DEFAULT_YEARS, now=None):
+    """Daily (date, close, volume) for `symbol` over the trailing `years`.
+
+    Read-only: it never touches the ticker's CSV, so it can be pointed at a
+    long-history proxy to replay the rule. Bars are parsed without requiring
+    volume, so an index also works.
+
+    Any bar dated "today" is dropped unconditionally. Unlike `drop_partial_bar`
+    this does not try to infer whether the session has closed, because the
+    symbol's market is unknown here and replaying a half-finished bar is worse
+    than losing one session from a multi-year sample.
+    """
+    now = now or datetime.now(tz=ZoneInfo(EXCHANGE_TZ))
+    start = int((now - timedelta(days=round(years * 365.25))).timestamp())
+    url = BACKTEST_URL.format(
+        symbol=urllib.parse.quote(symbol), start=start, end=int(now.timestamp())
+    )
+    payload = _fetch_payload(url, label=symbol)
+    if not _is_daily(payload):
+        print(
+            "warning: %s served at %s granularity; treating bars as daily"
+            % (symbol, _payload_granularity(payload)),
+            file=sys.stderr,
+        )
+    prices = _parse_payload(payload, require_volume=False)
+    if prices and prices[-1][0] == now.date().isoformat():
+        prices = prices[:-1]
+    return prices
+
+
+def backtest_stats(prices, enter=DRAWDOWN_THRESHOLD, exit_=DRAWDOWN_EXIT_THRESHOLD):
+    """Replay the switch over a close series and summarise what it did."""
+    dates = [day for day, _, _ in prices]
+    closes = [close for _, close, _ in prices]
+    peaks = trailing_peaks(closes)
+    drawdowns = [close / peak - 1.0 if peak else 0.0 for close, peak in zip(closes, peaks)]
+    modes = drawdown_modes(drawdowns, enter, exit_)
+
+    episodes = []
+    index = 0
+    while index < len(modes):
+        if modes[index] != "cash":
+            index += 1
+            continue
+        end = index
+        while end + 1 < len(modes) and modes[end + 1] == "cash":
+            end += 1
+        episodes.append(
+            BacktestEpisode(
+                start=dates[index],
+                end=dates[end],
+                position=index,
+                readings=end - index + 1,
+                entry=drawdowns[index],
+                exit=drawdowns[end],
+            )
+        )
+        index = end + 1
+
+    switches = sum(1 for i in range(1, len(modes)) if modes[i] != modes[i - 1])
+    return BacktestStats(
+        bars=len(closes),
+        first=dates[0] if dates else "",
+        last=dates[-1] if dates else "",
+        years=len(closes) / TRADING_DAYS_PER_YEAR,
+        max_drawdown=min(drawdowns) if drawdowns else 0.0,
+        cash_share=modes.count("cash") / len(modes) if modes else 0.0,
+        switches=switches,
+        episodes=episodes,
+        worst=max((episode.readings for episode in episodes), default=0)
+        / TRADING_DAYS_PER_YEAR,
+    )
+
+
+def cmd_backtest(symbol, years=BACKTEST_DEFAULT_YEARS, annual_spend=None, sweep=False):
+    if years <= 0:
+        print("error: --years must be a positive integer", file=sys.stderr)
+        return 2
+    if annual_spend is not None and annual_spend <= 0:
+        print("error: --annual-spend must be a positive number", file=sys.stderr)
+        return 2
+    try:
+        prices = fetch_history(symbol, years)
+    except FetchError as exc:
+        print("error: %s" % exc, file=sys.stderr)
+        return 1
+    if len(prices) < 2:
+        print("error: no usable history for %s" % symbol, file=sys.stderr)
+        return 1
+
+    stats = backtest_stats(prices)
+    print(
+        "Backtest: %s - %s -> %s (%d closes, %.1f years)\n"
+        % (symbol, stats.first, stats.last, stats.bars, stats.years)
+    )
+    print("  index max drawdown        %6.1f%%" % (stats.max_drawdown * 100))
+    print("  time in cash              %6.1f%%" % (stats.cash_share * 100))
+    print(
+        "  switches                  %6d  (%.2f/yr)"
+        % (stats.switches, stats.switches / stats.years)
+    )
+    print("  cash episodes             %6d" % len(stats.episodes))
+    if stats.episodes:
+        print("\n  start        end           years   dd entry   dd exit")
+        for episode in stats.episodes:
+            print(
+                "  %s  %s   %5.2f    %7.1f%%   %7.1f%%"
+                % (
+                    episode.start,
+                    episode.end,
+                    episode.readings / TRADING_DAYS_PER_YEAR,
+                    episode.entry * 100,
+                    episode.exit * 100,
+                )
+            )
+        print("\n  worst episode %.2f years of spending" % stats.worst)
+        if annual_spend is not None:
+            print(
+                "  at %s/yr that is %s"
+                % (
+                    format(annual_spend, ",.0f"),
+                    format(annual_spend * stats.worst, ",.0f"),
+                )
+            )
+    print(
+        "\n  rule: switch to cash at -%.0f%%, re-arm at -%.0f%%"
+        % (DRAWDOWN_THRESHOLD * 100, DRAWDOWN_EXIT_THRESHOLD * 100)
+    )
+    if any(episode.position < DRAWDOWN_PEAK_WINDOW for episode in stats.episodes):
+        print(
+            "  note: episodes in the first %d bars ran on a partial peak window"
+            % DRAWDOWN_PEAK_WINDOW
+        )
+    if sweep:
+        print("\n  worst episode by threshold (years)")
+        print("  enter      0%         5%         10%")
+        for enter in (0.10, 0.15, 0.20):
+            cells = []
+            for exit_ in (0.0, 0.05, 0.10):
+                cells.append("%.2f" % backtest_stats(prices, enter, exit_).worst)
+            print("  %3.0f%%      %-9s  %-9s  %-9s" % (enter * 100, cells[0], cells[1], cells[2]))
+    print("\n  (read-only: no readings were written)")
     return 0
 
 
@@ -1171,12 +1411,14 @@ def cmd_report():
     return 0
 
 
-def cmd_rebuild(ci=False):
+def cmd_rebuild(ci=False, reset_switch=False):
     """Recompute the whole series from source prices and overwrite the CSV.
 
     Unlike `run`, this does not preserve existing rows - it is the manual
     escape hatch when source prices have been revised (see `run`'s drift
-    warning).
+    warning). Recorded switch states are the exception: they are a log rather
+    than a metric, so they survive a rebuild unless `reset_switch` asks for a
+    full re-derivation under the current thresholds.
     """
     try:
         computed = _fetch_computed()
@@ -1188,10 +1430,23 @@ def cmd_rebuild(ci=False):
         return _not_enough_history()
 
     rows_by_date = {row["date"]: _format(row) for row in computed}
+    preserved = 0
+    if not reset_switch:
+        existing = load_rows()
+        for day, row in rows_by_date.items():
+            prior = existing.get(day)
+            if prior and prior.get("mode") in ("equity", "cash"):
+                row["mode"] = prior["mode"]
+                preserved += 1
     save_rows(rows_by_date)
 
     rows = sorted_rows(rows_by_date)
     print("Rebuilt %s from scratch - %d readings." % (CSV_PATH.relative_to(ROOT), len(rows)))
+    if preserved:
+        print(
+            "  (kept the recorded switch state for %d reading%s)"
+            % (preserved, "" if preserved == 1 else "s")
+        )
     print_reading(rows[-1], float(rows[-1]["delta_sigma"]))
 
     if ci:
@@ -1206,9 +1461,10 @@ def write_step_summary(rows):
     latest = rows[-1]
     slope = term_slope(latest)
     with open(path, "a") as handle:
-        handle.write("## VALL Rolling Variance Delta\n\n")
+        handle.write("## VALL drawdown monitor\n\n")
+        handle.write("\n".join(state_lines(rows)) + "\n\n")
         handle.write("%s\n\n" % reading_headline(latest))
-        handle.write("`%s`\n\n" % sparkline(delta_series(rows)[-SPARK_WIDTH:]))
+        handle.write("%s\n\n" % sparkline_summary(delta_series(rows)[-SPARK_WIDTH:]))
         handle.write(
             "Volatility term structure (σ ann., %s d): %s\n\n"
             % ("/".join(str(w) for w in SIGMA_WINDOWS), term_structure_display(latest))
@@ -1251,6 +1507,26 @@ def main(argv=None):
         help="annual spend used to translate the current cash episode into months of cover",
     )
 
+    backtest_parser = sub.add_parser(
+        "backtest", help="replay the switch over a long history (read-only)"
+    )
+    backtest_parser.add_argument("symbol", help="Yahoo symbol to replay, e.g. VT")
+    backtest_parser.add_argument(
+        "--years",
+        type=int,
+        default=BACKTEST_DEFAULT_YEARS,
+        help="years of history to fetch (default %d)" % BACKTEST_DEFAULT_YEARS,
+    )
+    backtest_parser.add_argument(
+        "--annual-spend",
+        type=float,
+        default=None,
+        help="annual spend used to translate the worst episode into an amount",
+    )
+    backtest_parser.add_argument(
+        "--sweep", action="store_true", help="also sweep the enter/exit thresholds"
+    )
+
     sub.add_parser("report", help="regenerate the README report section")
 
     rebuild_parser = sub.add_parser(
@@ -1259,16 +1535,23 @@ def main(argv=None):
     rebuild_parser.add_argument(
         "--ci", action="store_true", help="also write the GitHub step summary"
     )
+    rebuild_parser.add_argument(
+        "--reset-switch",
+        action="store_true",
+        help="re-derive the recorded switch state under the current thresholds",
+    )
 
     args = parser.parse_args(argv)
     if args.command == "run":
         return cmd_run(ci=args.ci, strict=args.strict)
     if args.command == "rebuild":
-        return cmd_rebuild(ci=args.ci)
+        return cmd_rebuild(ci=args.ci, reset_switch=args.reset_switch)
     if args.command == "history":
         return cmd_history(args.limit)
     if args.command == "drawdown":
         return cmd_drawdown(args.limit, args.annual_spend)
+    if args.command == "backtest":
+        return cmd_backtest(args.symbol, args.years, args.annual_spend, args.sweep)
     if args.command == "report":
         return cmd_report()
     parser.error("unknown command")

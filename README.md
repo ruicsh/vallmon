@@ -1,9 +1,13 @@
-# vallmon - VALL Rolling Variance Delta (delta-sigma) monitor
+# vallmon - VALL drawdown switch monitor
 
-Monitors volatility expansion and compression in **VALL** - the Vanguard FTSE
-Global All-Cap UCITS ETF USD Acc (London Stock Exchange: `VALL.L`, ISIN
-`IE000VAHT5T0`) - using the Rolling Variance Delta metric, alongside a
-short-vs-long volatility term structure (σ10/σ20/σ30/σ60).
+Tracks **VALL** - the Vanguard FTSE Global All-Cap UCITS ETF USD Acc (London
+Stock Exchange: `VALL.L`, ISIN `IE000VAHT5T0`) - and answers one question: in a
+drawdown, should spending come from cash or from the fund?
+
+The answer is a two-threshold switch, with the state recorded alongside every
+reading. The Rolling Variance Delta metric and the short-vs-long volatility
+term structure (σ10/σ20/σ30/σ60) are reported as context: they describe
+dispersion, not direction, and never change the switch.
 
 ## Current reading
 
@@ -97,10 +101,21 @@ rolling statistic can. `python vallmon.py drawdown` prints the recent series
 and the current state; `--annual-spend` additionally translates the current
 cash episode into the number of months and amount of spending it covers.
 
+The state is **recorded, not derived**: each reading stores the `mode` it was
+written with, and the report reads that back. Re-parameterising the thresholds
+therefore changes future signals only - it cannot rewrite the history of what
+the monitor actually said. `rebuild` preserves the recorded state for the same
+reason; pass `--reset-switch` if you deliberately want it re-derived under the
+current thresholds.
+
+`python vallmon.py backtest VT --years 18` replays the same rule over any
+long-history Yahoo symbol and summarises the cash episodes it would have
+produced. It is read-only and never touches the ticker's CSV.
+
 The peak window is ~3 years, so until that much history exists the rule is
 running on a partial window - the report states how many readings it has seen.
 The window and both thresholds are **provisional defaults** (three years, 15%,
-5%), not backtested parameters; treat a signal as information rather than a
+5%), not calibrated parameters; treat a signal as information rather than a
 validated trigger.
 
 ### Data & caveats
@@ -122,6 +137,13 @@ validated trigger.
 - **Short history:** VALL's share class incepted on 18 Aug 2026, so early
   readings use a reduced baseline until ~90 trading days accumulate (~Feb 2027);
   the 60-day term-structure leg stays empty until ~mid-November 2026.
+- **Switch state:** each row also stores the `mode` (`equity` or `cash`) that
+  was signalled when it was written. It is a record, not a metric: it is never
+  drift-checked, because recomputing it under new thresholds would rewrite the
+  signal history. Rows written before the column existed are backfilled once,
+  from a recompute under the current thresholds, the next time `run` or
+  `rebuild` executes. A partially-recorded series (some rows with a state,
+  some without) warns and falls back to a recompute rather than mixing the two.
 - **Reproducibility:** each row is written once and never silently rewritten. If
   Yahoo later revises a historical close, `run` prints a drift warning (checked
   against the primary σ, baseline, Δσ and every term-structure leg); `--strict`
@@ -149,6 +171,7 @@ python vallmon.py run --strict    # ...but refuse to append if stored rows drift
 python vallmon.py rebuild         # recompute the whole series from source (overwrites CSV)
 python vallmon.py history         # recent readings with a trend sparkline
 python vallmon.py drawdown        # drawdown from the trailing peak + switch state
+python vallmon.py backtest VT     # replay the switch over a long history (read-only)
 python vallmon.py report          # regenerate the "Current reading" section above
 ```
 

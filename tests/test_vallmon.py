@@ -122,6 +122,17 @@ def test_parse_payload_ragged_arrays_raise_fetch_error():
         vallmon._parse_payload(payload)
 
 
+def test_parse_payload_tolerates_missing_volume_when_not_required():
+    payload = _chart_payload([(1758172800, 3.71, 1000), (1758259200, 3.72, 500)])
+    del payload["chart"]["result"][0]["indicators"]["quote"][0]["volume"]
+
+    with pytest.raises(vallmon.FetchError):
+        vallmon._parse_payload(payload)
+
+    prices = vallmon._parse_payload(payload, require_volume=False)
+    assert [(close, volume) for _, close, volume in prices] == [(3.71, 0), (3.72, 0)]
+
+
 # --- fetch retry ------------------------------------------------------------
 
 def test_fetch_prices_retries_then_succeeds(monkeypatch):
@@ -512,6 +523,107 @@ def test_signal_history_says_none_yet():
     assert "No state changes yet" in "\n".join(vallmon.signal_history_lines(rows))
 
 
+def _crash_prices(peak=130.0, trough=95.0, up=30, down=10, after=20):
+    """A rise to a peak, a crash through -15% and a recovery to a new high."""
+    prices = []
+
+    def add(close):
+        prices.append(("d%03d" % len(prices), close, 1000))
+
+    for i in range(up):
+        add(100.0 + i * (peak - 100.0) / (up - 1))
+    for i in range(1, down + 1):
+        add(peak - i * (peak - trough) / down)
+    for i in range(1, after + 1):
+        add(trough + i * 2.0)
+    return prices
+
+
+def test_compute_rows_records_the_switch_mode():
+    rows = vallmon.compute_rows(_crash_prices())
+    modes = [row["mode"] for row in rows]
+    assert modes[0] == "equity"
+    assert "cash" in modes
+    assert modes[-1] == "equity"
+
+
+def test_format_writes_the_switch_mode():
+    formatted = vallmon._format(
+        {
+            "date": "2026-01-02",
+            "close": 3.71,
+            "volume": 1000,
+            "sigma_annualized": 0.1,
+            "baseline_mean": 0.1,
+            "delta_sigma": 1.0,
+            "mode": "cash",
+        }
+    )
+    assert formatted["mode"] == "cash"
+
+
+def test_drawdown_rows_prefer_the_recorded_mode():
+    first = _close_row("2026-01-02", 4.0)
+    second = _close_row("2026-01-03", 3.9)
+    first["mode"] = "cash"
+    second["mode"] = "cash"
+    rows = vallmon.sorted_rows({"2026-01-02": first, "2026-01-03": second})
+
+    out = vallmon.drawdown_rows(rows)
+
+    # -2.5% would derive "equity"; the recorded state must win.
+    assert [entry.mode for entry in out] == ["cash", "cash"]
+    assert [entry.signal for entry in out] == ["hold", "hold"]
+
+
+def test_drawdown_rows_warn_when_only_part_of_the_state_is_recorded():
+    first = _close_row("2026-01-02", 4.0)
+    first["mode"] = "cash"
+    second = _close_row("2026-01-03", 3.9)      # no recorded state
+    rows = vallmon.sorted_rows({"2026-01-02": first, "2026-01-03": second})
+
+    with pytest.warns(RuntimeWarning, match="partially recorded"):
+        out = vallmon.drawdown_rows(rows)
+
+    assert [entry.mode for entry in out] == ["equity", "equity"]
+
+
+def test_backtest_stats_summarise_the_episode():
+    stats = vallmon.backtest_stats(_crash_prices())
+    assert stats.max_drawdown < -0.2
+    assert len(stats.episodes) == 1
+    assert stats.switches >= 2
+    assert stats.worst > 0
+    assert stats.episodes[0].entry <= -vallmon.DRAWDOWN_THRESHOLD
+
+
+def test_cmd_backtest_prints_a_summary(monkeypatch, capsys):
+    monkeypatch.setattr(vallmon, "fetch_history", lambda *a, **k: _crash_prices())
+
+    assert vallmon.cmd_backtest("TEST", years=5, annual_spend=50000) == 0
+    out = capsys.readouterr().out
+    assert "Backtest: TEST" in out
+    assert "worst episode" in out
+    assert "at 50,000/yr" in out
+    assert "read-only" in out
+
+
+def test_cmd_backtest_rejects_bad_arguments(capsys):
+    assert vallmon.cmd_backtest("X", years=0) == 2
+    assert "--years" in capsys.readouterr().err
+    assert vallmon.cmd_backtest("X", annual_spend=0) == 2
+    assert "--annual-spend" in capsys.readouterr().err
+
+
+def test_cmd_backtest_reports_fetch_errors(monkeypatch, capsys):
+    def boom(*args, **kwargs):
+        raise vallmon.FetchError("no data")
+
+    monkeypatch.setattr(vallmon, "fetch_history", boom)
+    assert vallmon.cmd_backtest("X") == 1
+    assert "error: no data" in capsys.readouterr().err
+
+
 # --- term structure ---------------------------------------------------------
 
 def _rising_prices(n):
@@ -796,7 +908,10 @@ def test_reading_headline_matches_readme_and_step_summary(monkeypatch, tmp_path,
     summary_path = tmp_path / "summary.md"
     monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary_path))
     vallmon.write_step_summary(rows)
-    assert headline in summary_path.read_text()
+    text = summary_path.read_text()
+    assert headline in text
+    assert "## VALL drawdown monitor" in text
+    assert "drawdown 0.00%" in text          # state leads, not the volatility metric
 
 
 # --- commands ---------------------------------------------------------------
@@ -877,7 +992,34 @@ def test_cmd_run_backfills_term_structure(monkeypatch, tmp_path, capsys):
     assert stored["sigma_30"]                                  # populated (35 closes)
     assert stored["sigma_60"] == ""                            # 60d still unavailable
     assert stored["delta_sigma"] == "1.0000"                   # metric stayed frozen
-    assert "backfilled term structure for 1 existing reading" in capsys.readouterr().out
+    assert "backfilled derived columns for 1 existing reading" in capsys.readouterr().out
+
+
+def test_cmd_run_backfills_the_switch_mode(monkeypatch, tmp_path, capsys):
+    prices = _crash_prices()
+    _seeded(tmp_path, monkeypatch, prices)
+    latest = vallmon.compute_rows(prices)[-1]
+
+    # Simulate a CSV written before the switch-mode column existed.
+    vallmon.save_rows(
+        {
+            latest["date"]: {
+                "date": latest["date"],
+                "close": "%.4f" % latest["close"],
+                "volume": "%d" % latest["volume"],
+                "sigma_annualized": "%.6f" % latest["sigma_annualized"],
+                "baseline_mean": "%.6f" % latest["baseline_mean"],
+                "delta_sigma": "%.4f" % latest["delta_sigma"],
+                "sigma_10": "%.6f" % latest["sigma_10"],
+                "sigma_30": "%.6f" % latest["sigma_30"],
+            }
+        }
+    )
+
+    assert vallmon.cmd_run() == 0
+    stored = vallmon.load_rows()[latest["date"]]
+    assert stored["mode"] in ("equity", "cash")
+    assert "backfilled derived columns" in capsys.readouterr().out
 
 
 def test_cmd_run_warns_on_drift(monkeypatch, tmp_path, capsys):
@@ -969,6 +1111,37 @@ def test_cmd_rebuild_overwrites(monkeypatch, tmp_path, capsys):
     assert "1999-01-01" not in rows
     assert len(rows) == 2
     assert "Rebuilt" in capsys.readouterr().out
+
+
+def _seed_with_recorded_state(tmp_path, monkeypatch, mode="cash"):
+    prices = _crash_prices()
+    _seeded(tmp_path, monkeypatch, prices)
+    seeded = {}
+    for row in vallmon.compute_rows(prices):
+        formatted = vallmon._format(row)
+        formatted["mode"] = mode
+        seeded[row["date"]] = formatted
+    vallmon.save_rows(seeded)
+
+
+def test_cmd_rebuild_keeps_the_recorded_switch_state(monkeypatch, tmp_path, capsys):
+    _seed_with_recorded_state(tmp_path, monkeypatch, mode="cash")
+
+    assert vallmon.cmd_rebuild() == 0
+
+    stored = vallmon.load_rows()
+    assert stored and all(row["mode"] == "cash" for row in stored.values())
+    assert "kept the recorded switch state" in capsys.readouterr().out
+
+
+def test_cmd_rebuild_reset_switch_rederives_the_state(monkeypatch, tmp_path, capsys):
+    _seed_with_recorded_state(tmp_path, monkeypatch, mode="cash")
+
+    assert vallmon.cmd_rebuild(reset_switch=True) == 0
+
+    modes = {row["mode"] for row in vallmon.load_rows().values()}
+    assert modes == {"equity", "cash"}
+    assert "kept the recorded switch state" not in capsys.readouterr().out
 
 
 def test_main_history_rejects_nonpositive_limit(capsys):
