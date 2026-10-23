@@ -56,6 +56,10 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 ## Recent readings
 
+**Volatility bars** — Δσ against its 90-day baseline. Three bars is normal; more means bigger day-to-day moves.
+
+<img src="docs/assets/vol-compressed.svg" alt="compressed" width="19" height="12"> compressed · <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> compressing · <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> normal · <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> expanding · <img src="docs/assets/vol-elevated.svg" alt="elevated" width="19" height="12"> elevated
+
 | Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
 |------|------------:|------:|---------:|-------|--------|----:|------------|
 | 2026-10-23 | 3.652 | -0.07% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.69% | equity | hold | 0.87 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |

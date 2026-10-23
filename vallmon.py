@@ -454,6 +454,20 @@ def volatility_markdown(index):
     )
 
 
+def volatility_legend_lines():
+    """One-line legend for the volatility bar column, low to high."""
+    items = [
+        "%s %s" % (volatility_markdown(index), band_name(index))
+        for index in reversed(range(len(VOLATILITY_BANDS) + 1))
+    ]
+    return [
+        "**Volatility bars** \u2014 \u0394\u03c3 against its 90-day baseline. Three bars is "
+        "normal; more means bigger day-to-day moves.",
+        "",
+        " \u00b7 ".join(items),
+    ]
+
+
 def volatility_bands(deltas, confirm=VOLATILITY_CONFIRM):
     """Sticky band index per reading (0 = elevated, len = compressed).
 
@@ -1508,6 +1522,8 @@ def build_report_section(rows):
     lines += ["", "## Volatility context", ""]
     lines += context_lines(rows)
     lines += ["", "## Recent readings", ""]
+    lines += volatility_legend_lines()
+    lines += [""]
     lines += readings_table(rows)
     lines += [
         "",
