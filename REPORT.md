@@ -44,28 +44,28 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 ## Recent readings
 
-| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Volatility |
-|------|-------------|----------|-------|--------|-----|------------|
-| 2026-10-22 | 3.655 | -3.63% | equity | hold | 0.89 | 🔵 compressing |
-| 2026-10-21 | 3.699 | -2.48% | equity | hold | 0.82 | 🔵 compressing |
-| 2026-10-20 | 3.687 | -2.78% | equity | hold | 0.80 | 🟢 normal |
-| 2026-10-19 | 3.704 | -2.33% | equity | hold | 0.82 | 🟢 normal |
-| 2026-10-16 | 3.699 | -2.47% | equity | hold | 0.95 | 🟢 normal |
-| 2026-10-15 | 3.719 | -1.94% | equity | hold | 0.95 | 🟢 normal |
-| 2026-10-14 | 3.752 | -1.07% | equity | hold | 0.95 | 🟢 normal |
-| 2026-10-13 | 3.754 | -1.02% | equity | hold | 0.97 | 🟢 normal |
-| 2026-10-12 | 3.774 | -0.49% | equity | hold | 0.97 | 🟢 normal |
-| 2026-10-09 | 3.764 | -0.74% | equity | hold | 1.00 | 🟢 normal |
-| 2026-10-08 | 3.749 | -1.15% | equity | hold | 1.02 | 🟢 normal |
-| 2026-10-07 | 3.765 | -0.71% | equity | hold | 1.02 | 🟢 normal |
-| 2026-10-06 | 3.792 | 0.00% | equity | hold | 1.04 | 🟢 normal |
-| 2026-10-05 | 3.779 | 0.00% | equity | hold | 1.04 | 🟢 normal |
-| 2026-10-02 | 3.754 | -0.42% | equity | hold | 1.03 | 🟢 normal |
-| 2026-10-01 | 3.716 | -1.45% | equity | hold | 0.96 | 🟢 normal |
-| 2026-09-30 | 3.740 | -0.80% | equity | hold | 0.95 | 🟢 normal |
-| 2026-09-29 | 3.740 | -0.78% | equity | hold | 0.95 | 🟢 normal |
-| 2026-09-28 | 3.736 | -0.90% | equity | hold | 1.03 | 🟢 normal |
-| 2026-09-25 | 3.764 | -0.16% | equity | hold | 1.03 | 🟢 normal |
+| Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
+|------|-------------|-------|----------|-------|--------|-----|------------|
+| 2026-10-22 | 3.655 | 🟥-1.18% | -3.63% | equity | hold | 0.89 | 🔵 compressing |
+| 2026-10-21 | 3.699 | 🟩+0.31% | -2.48% | equity | hold | 0.82 | 🔵 compressing |
+| 2026-10-20 | 3.687 | 🟥-0.46% | -2.78% | equity | hold | 0.80 | 🟢 normal |
+| 2026-10-19 | 3.704 | 🟩+0.14% | -2.33% | equity | hold | 0.82 | 🟢 normal |
+| 2026-10-16 | 3.699 | 🟥-0.54% | -2.47% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-15 | 3.719 | 🟥-0.88% | -1.94% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-14 | 3.752 | 🟥-0.05% | -1.07% | equity | hold | 0.95 | 🟢 normal |
+| 2026-10-13 | 3.754 | 🟥-0.53% | -1.02% | equity | hold | 0.97 | 🟢 normal |
+| 2026-10-12 | 3.774 | 🟩+0.25% | -0.49% | equity | hold | 0.97 | 🟢 normal |
+| 2026-10-09 | 3.764 | 🟩+0.41% | -0.74% | equity | hold | 1.00 | 🟢 normal |
+| 2026-10-08 | 3.749 | 🟥-0.44% | -1.15% | equity | hold | 1.02 | 🟢 normal |
+| 2026-10-07 | 3.765 | 🟥-0.71% | -0.71% | equity | hold | 1.02 | 🟢 normal |
+| 2026-10-06 | 3.792 | 🟩+0.37% | 0.00% | equity | hold | 1.04 | 🟢 normal |
+| 2026-10-05 | 3.779 | 🟩+0.65% | 0.00% | equity | hold | 1.04 | 🟢 normal |
+| 2026-10-02 | 3.754 | 🟩+1.04% | -0.42% | equity | hold | 1.03 | 🟢 normal |
+| 2026-10-01 | 3.716 | 🟥-0.66% | -1.45% | equity | hold | 0.96 | 🟢 normal |
+| 2026-09-30 | 3.740 | 🟥-0.01% | -0.80% | equity | hold | 0.95 | 🟢 normal |
+| 2026-09-29 | 3.740 | 🟩+0.12% | -0.78% | equity | hold | 0.95 | 🟢 normal |
+| 2026-09-28 | 3.736 | 🟥-0.74% | -0.90% | equity | hold | 1.03 | 🟢 normal |
+| 2026-09-25 | 3.764 | 🟩+0.51% | -0.16% | equity | hold | 1.03 | 🟢 normal |
 
 _Last 20 of 23 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
 

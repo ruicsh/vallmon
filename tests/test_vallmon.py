@@ -420,6 +420,27 @@ def test_trailing_peaks_default_window_uses_all_available_history():
     assert vallmon.trailing_peaks([10, 9, 8]) == [10, 10, 10]
 
 
+def test_day_display_marks_direction():
+    assert vallmon.day_display(None) == "\u2014"
+    assert vallmon.day_display(0.0014) == "\U0001F7E9+0.14%"
+    assert vallmon.day_display(-0.0118) == "\U0001F7E5-1.18%"
+    assert vallmon.day_display(0.0) == "\u2B1C+0.00%"
+
+
+def test_daily_change_series_is_close_to_close():
+    rows = vallmon.sorted_rows(
+        {
+            "2026-01-02": _close_row("2026-01-02", 4.0),
+            "2026-01-03": _close_row("2026-01-03", 4.2),
+            "2026-01-04": _close_row("2026-01-04", 4.2),
+        }
+    )
+    changes = vallmon.daily_change_series(rows)
+    assert changes[0] is None
+    assert changes[1] == pytest.approx(0.05)
+    assert changes[2] == pytest.approx(0.0)
+
+
 def test_drawdown_series_measures_from_the_peak():
     drawdowns = vallmon.drawdown_series([100, 120, 108, 92, 96])
     assert drawdowns[0] == 0.0                       # first reading is its own peak

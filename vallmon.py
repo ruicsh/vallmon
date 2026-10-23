@@ -864,6 +864,42 @@ def delta_series(rows):
     return [float(row["delta_sigma"]) for row in rows]
 
 
+DAY_UP = "\U0001F7E9"      # green square
+DAY_DOWN = "\U0001F7E5"    # red square
+DAY_FLAT = "\u2B1C"        # white square
+
+
+def day_marker(change):
+    """Direction marker for a close-to-close change.
+
+    Squares, not the circles used for volatility labels: the two columns sit
+    side by side, and green must not mean "normal" in one and "up" in the next.
+    """
+    if change is None:
+        return ""
+    if change > 0:
+        return DAY_UP
+    if change < 0:
+        return DAY_DOWN
+    return DAY_FLAT
+
+
+def day_display(change):
+    """`+0.14%` prefixed by its direction marker, or an em dash when unknown."""
+    if change is None:
+        return "\u2014"
+    return "%s%+.2f%%" % (day_marker(change), change * 100)
+
+
+def daily_change_series(rows):
+    """Close-to-close change of every row, oldest first; None for the first."""
+    closes = [float(row["close"]) for row in rows]
+    changes = [None]
+    for previous, current in zip(closes, closes[1:]):
+        changes.append(current / previous - 1.0 if previous else None)
+    return changes
+
+
 def reading_headline(row, label=None):
     """One-line summary of a reading, shared by the README and CI surfaces."""
     delta = float(row["delta_sigma"])
@@ -1080,16 +1116,22 @@ def cmd_history(limit):
         print("No readings yet; run `python vallmon.py run` first.")
         return 0
     recent = rows[-limit:]
+    changes = daily_change_series(rows)[-len(recent) :]
     labels = volatility_labels(delta_series(rows))[-len(recent) :]
     print("VALL Rolling Variance Delta - last %d readings\n" % len(recent))
-    print("  date         close       volume    sigma    base     d-sigma  volatility")
-    for row, label in zip(recent, labels):
+    print(
+        "  %-10s  %6s  %8s  %12s  %7s  %7s  %6s   %s"
+        % ("date", "close", "day", "volume", "sigma", "base", "d-sigma", "volatility")
+    )
+    for row, change, label in zip(recent, changes, labels):
         delta = float(row["delta_sigma"])
+        day = day_display(change)
         print(
-            "  %s  %6.3f  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
+            "  %s  %6.3f  %7s  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
             % (
                 row["date"],
                 float(row["close"]),
+                day,
                 volume_display(row),
                 float(row["sigma_annualized"]) * 100,
                 float(row["baseline_mean"]) * 100,
@@ -1365,19 +1407,22 @@ def context_lines(rows):
 def readings_table(rows, limit=REPORT_READING_ROWS):
     """The decision-relevant columns for the most recent readings, newest first."""
     readings = drawdown_rows(rows)[-limit:]
+    changes = daily_change_series(rows)[-len(readings) :]
     labels = volatility_labels(delta_series(rows))[-len(readings) :]
     lines = [
-        "| Date | Close (GBP) | Drawdown | State | Signal | Δσ | Volatility |",
-        "|------|-------------|----------|-------|--------|-----|------------|",
+        "| Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |",
+        "|------|-------------|-------|----------|-------|--------|-----|------------|",
     ]
-    for reading, label in zip(reversed(readings), reversed(labels)):
+    for reading, change, label in zip(reversed(readings), reversed(changes), reversed(labels)):
         row = reading.row
         delta = float(row["delta_sigma"])
+        day = day_display(change)
         lines.append(
-            "| %s | %.3f | %.2f%% | %s | %s | %.2f | %s |"
+            "| %s | %.3f | %s | %.2f%% | %s | %s | %.2f | %s |"
             % (
                 row["date"],
                 float(row["close"]),
+                day,
                 reading.drawdown * 100,
                 reading.mode,
                 reading.signal,
