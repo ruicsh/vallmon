@@ -862,31 +862,60 @@ def delta_series(rows):
     return [float(row["delta_sigma"]) for row in rows]
 
 
-DAY_UP = "\U0001F7E9"      # green square
-DAY_DOWN = "\U0001F7E5"    # red square
-DAY_FLAT = "\u2B1C"        # white square
+# GitHub strips CSS from rendered markdown, so colour in the README comes from
+# small SVG assets rather than styled text. Terminals cannot render images, so
+# the CLI keeps the emoji. Squares rather than the circles used for volatility
+# labels: the two columns sit side by side, and green must not mean "normal" in
+# one and "gain" in the next.
+DAY_UP = "\U0001F7E9"      # green square (terminal)
+DAY_DOWN = "\U0001F7E5"    # red square (terminal)
+DAY_FLAT = "\u2B1C"        # white square (terminal)
+
+DAY_DIRECTIONS = {
+    "up": (DAY_UP, "docs/assets/arrow-up.svg", "gain"),
+    "down": (DAY_DOWN, "docs/assets/arrow-down.svg", "loss"),
+    "flat": (DAY_FLAT, "docs/assets/arrow-flat.svg", "unchanged"),
+}
+
+
+def day_direction(change):
+    """`up`, `down`, `flat`, or None when there is no previous reading."""
+    if change is None:
+        return None
+    if change > 0:
+        return "up"
+    if change < 0:
+        return "down"
+    return "flat"
 
 
 def day_marker(change):
-    """Direction marker for a close-to-close change.
+    """Emoji direction marker, for surfaces that cannot render images."""
+    direction = day_direction(change)
+    return "" if direction is None else DAY_DIRECTIONS[direction][0]
 
-    Squares, not the circles used for volatility labels: the two columns sit
-    side by side, and green must not mean "normal" in one and "up" in the next.
-    """
-    if change is None:
+
+def day_image(change):
+    """Inline SVG marker, for the GitHub-rendered README."""
+    direction = day_direction(change)
+    if direction is None:
         return ""
-    if change > 0:
-        return DAY_UP
-    if change < 0:
-        return DAY_DOWN
-    return DAY_FLAT
+    _, path, alt = DAY_DIRECTIONS[direction]
+    return '<img src="%s" alt="%s" width="12" height="12">' % (path, alt)
 
 
 def day_display(change):
-    """`+0.14%` prefixed by its direction marker, or an em dash when unknown."""
+    """Emoji-prefixed change, or an em dash when unknown (terminal output)."""
     if change is None:
         return "\u2014"
-    return "%s%+.2f%%" % (day_marker(change), change * 100)
+    return "%s %+.2f%%" % (day_marker(change), change * 100)
+
+
+def day_markdown(change):
+    """Image-prefixed change, or an em dash when unknown (README output)."""
+    if change is None:
+        return "\u2014"
+    return "%s %+.2f%%" % (day_image(change), change * 100)
 
 
 def daily_change_series(rows):
@@ -1118,14 +1147,14 @@ def cmd_history(limit):
     labels = volatility_labels(delta_series(rows))[-len(recent) :]
     print("VALL Rolling Variance Delta - last %d readings\n" % len(recent))
     print(
-        "  %-10s  %6s  %8s  %12s  %7s  %7s  %6s   %s"
+        "  %-10s  %6s  %9s  %12s  %7s  %7s  %6s   %s"
         % ("date", "close", "day", "volume", "sigma", "base", "d-sigma", "volatility")
     )
     for row, change, label in zip(recent, changes, labels):
         delta = float(row["delta_sigma"])
         day = day_display(change)
         print(
-            "  %s  %6.3f  %7s  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
+            "  %s  %6.3f  %8s  %12s  %6.2f%%  %6.2f%%  %6.2f   %s"
             % (
                 row["date"],
                 float(row["close"]),
@@ -1409,12 +1438,12 @@ def readings_table(rows, limit=REPORT_READING_ROWS):
     labels = volatility_labels(delta_series(rows))[-len(readings) :]
     lines = [
         "| Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |",
-        "|------|-------------|-------|----------|-------|--------|-----|------------|",
+        "|------|------------:|------:|---------:|-------|--------|----:|------------|",
     ]
     for reading, change, label in zip(reversed(readings), reversed(changes), reversed(labels)):
         row = reading.row
         delta = float(row["delta_sigma"])
-        day = day_display(change)
+        day = day_markdown(change)
         lines.append(
             "| %s | %.3f | %s | %.2f%% | %s | %s | %.2f | %s |"
             % (

@@ -422,9 +422,22 @@ def test_trailing_peaks_default_window_uses_all_available_history():
 
 def test_day_display_marks_direction():
     assert vallmon.day_display(None) == "\u2014"
-    assert vallmon.day_display(0.0014) == "\U0001F7E9+0.14%"
-    assert vallmon.day_display(-0.0118) == "\U0001F7E5-1.18%"
-    assert vallmon.day_display(0.0) == "\u2B1C+0.00%"
+    assert vallmon.day_display(0.0014) == "\U0001F7E9 +0.14%"
+    assert vallmon.day_display(-0.0118) == "\U0001F7E5 -1.18%"
+    assert vallmon.day_display(0.0) == "\u2B1C +0.00%"
+
+
+def test_day_markdown_uses_arrow_images():
+    assert vallmon.day_markdown(None) == "\u2014"
+    assert vallmon.day_markdown(0.0014) == (
+        '<img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> +0.14%'
+    )
+    assert vallmon.day_markdown(-0.0118) == (
+        '<img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> -1.18%'
+    )
+    assert vallmon.day_markdown(0.0) == (
+        '<img src="docs/assets/arrow-flat.svg" alt="unchanged" width="12" height="12"> +0.00%'
+    )
 
 
 def test_daily_change_series_is_close_to_close():
