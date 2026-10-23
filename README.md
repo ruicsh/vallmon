@@ -84,7 +84,26 @@ _Last 20 of 24 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.cs
 _How these are computed: [docs/methodology.md](docs/methodology.md)._
 <!-- REPORT:END -->
 
-**Volatility bars** — Δσ against its 90-day baseline. Three bars is normal; more means bigger day-to-day moves.
+## Legend
+
+### Reading columns
+
+What each column in the readings table above means.
+
+| Column | Values | In plain words |
+|--------|--------|----------------|
+| Date | a trading day | The London session the row describes. Weekends and holidays are absent; a bar taken before the 16:30 close is picked up the next day. |
+| Close (GBP) | a price | What one VALL unit cost at that day's London close, in pounds. |
+| Day % | `+x.xx%` ▲ / `-x.xx%` ▼ | The move since the previous reading. ▲ means up and ▼ means down; the sign carries the meaning, so the arrow is decoration, not a signal. |
+| Drawdown | `0.00%` to `-100%` | How far below its highest close of the past ~3 years the price sits. `0.00%` is a fresh high; `-15%` is where spending switches to cash. |
+| State | `equity` / `cash` | Which asset to spend from: `equity` sells from the fund, `cash` spends the cash bucket. |
+| Signal | `hold` / `draw from cash` / `refill` | What changed at this reading: `hold` = nothing, `draw from cash` = just switched into cash, `refill` = just switched back to equity. |
+| Δσ | a ratio centred on 1 | The last 20 days' volatility divided by its 90-day baseline. `1.00` = as calm as usual; above = bigger daily moves, below = smaller. |
+| Volatility | a bar | Δσ as a five-step bar. The key below explains the steps; it describes the size of moves, never their direction. |
+
+### Volatility bars
+
+Δσ against its 90-day baseline. Three bars is normal; more means bigger day-to-day moves.
 
 | Bars                                                                                 | Meaning     | In plain words                                                                                                                    |
 | ------------------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
