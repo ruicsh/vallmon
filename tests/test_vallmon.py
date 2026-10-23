@@ -399,12 +399,11 @@ def test_volatility_markdown_is_the_bar_alone():
         )
 
 
-def test_volatility_legend_lists_the_bands_low_to_high():
-    lines = vallmon.volatility_legend_lines()
-    assert "Three bars is normal" in lines[0]
-    assert "<details>" in lines and "</details>" in lines
+def test_readme_legend_lists_the_bands_low_to_high():
+    text = (vallmon.ROOT / "README.md").read_text()
+    assert "Three bars is normal" in text
 
-    rows = [line for line in lines if line.startswith("| <img")]
+    rows = [line for line in text.splitlines() if line.startswith("| <img")]
     names = [row.split("|")[2].strip() for row in rows]
     assert names == ["compressed", "compressing", "normal", "expanding", "elevated"]
 

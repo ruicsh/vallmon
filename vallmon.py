@@ -174,17 +174,6 @@ VOLATILITY_BANDS = (
 )
 VOLATILITY_COMPRESSED = ("compressed", "\u26AA")   # white circle
 
-# Plain-words description per band, used by the README legend.
-VOLATILITY_PLAIN = {
-    "compressed": "Unusually still. The market is barely twitching day to day. "
-    "Peaceful \u2014 though sometimes the quiet before a storm.",
-    "compressing": "Calming down. Quieter than it was a few weeks ago.",
-    "normal": "Ordinary. The usual amount of daily movement.",
-    "expanding": "Getting jumpier. Daily swings are growing \u2014 something is stirring.",
-    "elevated": "Unusually turbulent. Big daily swings. Usually a stressful period, "
-    "but also the time you'd want to be buying rather than selling.",
-}
-
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
 
@@ -463,32 +452,6 @@ def volatility_markdown(index):
         name,
         name,
     )
-
-
-def volatility_legend_lines():
-    """Visible scale plus a collapsible plain-words legend, low to high."""
-    indices = list(reversed(range(len(VOLATILITY_BANDS) + 1)))
-    items = ["%s %s" % (volatility_markdown(index), band_name(index)) for index in indices]
-    lines = [
-        "**Volatility bars** \u2014 \u0394\u03c3 against its 90-day baseline. Three bars is "
-        "normal; more means bigger day-to-day moves.",
-        "",
-        " \u00b7 ".join(items),
-        "",
-        "<details>",
-        "<summary>What the bars mean</summary>",
-        "",
-        "| Bars | Meaning | In plain words |",
-        "|------|---------|----------------|",
-    ]
-    for index in indices:
-        name = band_name(index)
-        lines.append(
-            "| %s | %s | %s |"
-            % (volatility_markdown(index), name, VOLATILITY_PLAIN[name])
-        )
-    lines += ["", "</details>"]
-    return lines
 
 
 def volatility_bands(deltas, confirm=VOLATILITY_CONFIRM):
@@ -1545,8 +1508,6 @@ def build_report_section(rows):
     lines += ["", "## Volatility context", ""]
     lines += context_lines(rows)
     lines += ["", "## Recent readings", ""]
-    lines += volatility_legend_lines()
-    lines += [""]
     lines += readings_table(rows)
     lines += [
         "",
