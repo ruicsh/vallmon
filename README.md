@@ -60,6 +60,19 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 <img src="docs/assets/vol-compressed.svg" alt="compressed" width="19" height="12"> compressed · <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> compressing · <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> normal · <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> expanding · <img src="docs/assets/vol-elevated.svg" alt="elevated" width="19" height="12"> elevated
 
+<details>
+<summary>What the bars mean</summary>
+
+| Bars | Meaning | In plain words |
+|------|---------|----------------|
+| <img src="docs/assets/vol-compressed.svg" alt="compressed" width="19" height="12"> | compressed | Unusually still. The market is barely twitching day to day. Peaceful — though sometimes the quiet before a storm. |
+| <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> | compressing | Calming down. Quieter than it was a few weeks ago. |
+| <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> | normal | Ordinary. The usual amount of daily movement. |
+| <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> | expanding | Getting jumpier. Daily swings are growing — something is stirring. |
+| <img src="docs/assets/vol-elevated.svg" alt="elevated" width="19" height="12"> | elevated | Unusually turbulent. Big daily swings. Usually a stressful period, but also the time you'd want to be buying rather than selling. |
+
+</details>
+
 | Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
 |------|------------:|------:|---------:|-------|--------|----:|------------|
 | 2026-10-23 | 3.652 | -0.07% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.69% | equity | hold | 0.87 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |

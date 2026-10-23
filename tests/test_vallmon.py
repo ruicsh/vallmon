@@ -402,13 +402,11 @@ def test_volatility_markdown_is_the_bar_alone():
 def test_volatility_legend_lists_the_bands_low_to_high():
     lines = vallmon.volatility_legend_lines()
     assert "Three bars is normal" in lines[0]
+    assert "<details>" in lines and "</details>" in lines
 
-    items = lines[-1]   # the row of bars, not the sentence above it
-    positions = [
-        items.index(name)
-        for name in ("compressed", "compressing", "normal", "expanding", "elevated")
-    ]
-    assert positions == sorted(positions)
+    rows = [line for line in lines if line.startswith("| <img")]
+    names = [row.split("|")[2].strip() for row in rows]
+    assert names == ["compressed", "compressing", "normal", "expanding", "elevated"]
 
 
 def test_volatility_labels_reject_a_zero_confirmation():
