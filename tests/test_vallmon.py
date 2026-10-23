@@ -390,15 +390,13 @@ def test_volatility_labels_switch_after_confirmation():
     assert labels[4] == "🔵 compressing"     # back to normal, but unconfirmed
 
 
-def test_volatility_markdown_uses_level_bars():
+def test_volatility_markdown_is_the_bar_alone():
     for index, name in enumerate(
         ("elevated", "expanding", "normal", "compressing", "compressed")
     ):
-        expected = (
-            '<img src="docs/assets/vol-%s.svg" alt="%s" width="19" height="12"> %s'
-            % (name, name, name)
+        assert vallmon.volatility_markdown(index) == (
+            '<img src="docs/assets/vol-%s.svg" alt="%s" width="19" height="12">' % (name, name)
         )
-        assert vallmon.volatility_markdown(index) == expected
 
 
 def test_volatility_labels_reject_a_zero_confirmation():

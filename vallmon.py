@@ -441,18 +441,17 @@ def volatility_label(delta):
     return band_label(volatility_band(delta))
 
 
-def volatility_image(index):
-    """The level-bar asset for a band index (README surfaces)."""
+def volatility_markdown(index):
+    """The level bar alone, for the GitHub-rendered README.
+
+    The band name lives in the alt text, so the column stays readable to a
+    screen reader or when images are blocked.
+    """
     name = band_name(index)
     return '<img src="docs/assets/vol-%s.svg" alt="%s" width="19" height="12">' % (
         name,
         name,
     )
-
-
-def volatility_markdown(index):
-    """Bar + name, for the GitHub-rendered README."""
-    return "%s %s" % (volatility_image(index), band_name(index))
 
 
 def volatility_bands(deltas, confirm=VOLATILITY_CONFIRM):
