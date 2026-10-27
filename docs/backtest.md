@@ -108,6 +108,31 @@ partial peak window (see above).
 | ^FTSE† | 1991-10-23 | 35.1 | -51.6% | 33.9% | 18 | 9 | 3.96y |
 | ^IXIC† | 1991-10-23 | 35.0 | -77.9% | 32.5% | 24 | 12 | 4.60y |
 
+## Max history
+
+`--years 200` returns whatever Yahoo holds, which is more than the 35-year
+series above for two of the three indices:
+
+| Index | History | Max drawdown | Time in cash | Switches | Episodes | Worst episode |
+|-------|---------|-------------:|-------------:|---------:|---------:|--------------:|
+| ^GSPC | 1927-12 → 2026-10 (98.5y) | -86.2% | 35.8% | 44 | 22 | **5.92y** |
+| ^FTSE | 1984-01 → 2026-10 (42.9y) | -51.6% | 33.1% | 22 | 11 | 3.96y |
+| ^IXIC | 1971-02 → 2026-10 (55.7y) | -77.9% | 39.1% | 42 | 21 | 4.60y |
+
+The S&P 500's longest episodes are 1937-05-13 → 1943-04-29 (5.92y, -16.2% to
+-5.2%) and 1929-10-23 → 1935-08-09 (5.72y, -16.5% to -5.8%). The Nasdaq's
+remains 2000-04-03 → 2004-11-10 (4.60y); its 1973-03-22 → 1976-11-30 episode
+runs 3.71y. The FTSE is unchanged at 3.96y (2001-2005) because Yahoo's series
+starts in 1984.
+
+So the 4.6-year modern-era bound is a **floor for severe bears, not a
+ceiling**: a depression-style tail needs roughly six years of spending. The 1929
+and 1973 entries are flagged partial-window, but unlike VT's 2008 entry the
+relevant peak sits inside the fetched window, so those entries are not
+distorted; the 1937 episode is full-window. The pre-1950 ^GSPC stretch comes from
+older, less clean Yahoo data, though the bar count (~252/year) suggests complete
+daily data.
+
 ## Episode detail
 
 Rows marked † began before the 756-bar window had filled, so their entry
@@ -168,7 +193,8 @@ bug: the rolling peak falls, but not fast enough - the price stays more than
   4.60 years (^IXIC), 3.96 (^FTSE), 3.68 (^GSPC), 3.37 (VWO) and 3.27 (SPY).
   A one- or two-year cash reserve would have run out in 2000-04 and 2008-2011.
   The full-window index runs confirm the order of magnitude: ^GSPC spends 3.27
-  years in cash through the GFC and ^FTSE 3.06.
+  years in cash through the GFC and ^FTSE 3.06. On full history the S&P 500 needs
+  5.92 years (1937-43), so treat 4.6 years as a floor (see Max history).
 - **Secular bears keep it in cash for a long time.** VWO spends 73.8% of the
   period in cash, ^FTSE 33.9%, VT 36.4%. VWO's eight episodes include
   2008-2011 (3.37y), 2011-2014 (2.99y), 2015-2017 (2.14y), 2018-2020 (2.44y)
@@ -193,6 +219,11 @@ done
 # 35-year price indices (quote the ^ so the shell leaves it alone)
 for sym in '^GSPC' '^FTSE' '^IXIC'; do
   python vallmon.py backtest "$sym" --years 35
+done
+
+# full history, whatever Yahoo holds (can reach 1927 for ^GSPC)
+for sym in '^GSPC' '^FTSE' '^IXIC'; do
+  python vallmon.py backtest "$sym" --years 200
 done
 ```
 
