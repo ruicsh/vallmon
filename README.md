@@ -12,15 +12,15 @@ context: they describe dispersion, not direction, and never change the switch.
 _Updated automatically each trading day by the GitHub Actions workflow._
 
 <!-- REPORT:START -->
-_As of 2026-10-26 · 25 readings · 2026-09-22 → 2026-10-26_
+_As of 2026-10-27 · 27 readings · 2026-09-21 → 2026-10-27_
 
 ## State
 
-**Equity** — drawdown -3.24%, unchanged for 25 readings (since 2026-09-22).
+**Equity** — drawdown -2.37%, unchanged for 27 readings (since 2026-09-21).
 
-No action. Switch to cash at -15% — a further 11.8 pp.
+No action. Switch to cash at -15% — a further 12.6 pp.
 
-> Window: 25 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-19.
+> Window: 27 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-17.
 
 ## Signal history
 
@@ -31,9 +31,9 @@ _No state changes yet — the switch has been in **equity** since the first read
 | Metric | Value |
 |--------|-------|
 | Peak (trailing 756d) | 3.7925 (2026-10-06) |
-| Current drawdown | -3.24% |
-| Distance to switch | 11.8 pp |
-| History seen | 25 of 756 readings |
+| Current drawdown | -2.37% |
+| Distance to switch | 12.6 pp |
+| History seen | 27 of 756 readings |
 
 _Rule: switch to cash at or below -15% of the trailing peak; return to equity at or above -5%._
 
@@ -41,16 +41,16 @@ _Rule: switch to cash at or below -15% of the trailing peak; return to equity at
 
 | Metric | Value |
 |--------|-------|
-| Δσ | 0.87 <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| Current σ (W=20, ann.) | 9.03% |
-| Baseline μ (N≤90) | 10.37% |
-| Term slope σ10/σ30 | 0.82 (contango) |
-| Latest volume | 11,435,921 units |
-| Δσ min / max / median | 0.80 / 1.04 / 0.97 |
+| Δσ | 0.94 <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| Current σ (W=20, ann.) | 9.67% |
+| Baseline μ (N≤90) | 10.31% |
+| Term slope σ10/σ30 | 0.97 (flat) |
+| Latest volume | 9,143,485 units |
+| Δσ min / max / median | 0.81 / 1.10 / 0.98 |
 
-**Δσ trend** `▇▆▇▇▇▅▅▅▇█▇▇▇▆▅▅▅▅▅▁▁▁▃▂▂` 1.01 → 0.87 (range 0.80–1.04, 25 readings)
+**Δσ trend** `█▆▅▆▆▆▄▄▄▆▆▆▆▆▅▅▅▄▄▄▁▁▁▃▂▂▄` 1.10 → 0.94 (range 0.81–1.10, 27 readings)
 
-**Term structure** (σ ann.): 10d 8.39% · 20d 9.03% · 30d 10.24% · 60d —
+**Term structure** (σ ann.): 10d 10.08% · 20d 9.67% · 30d 10.44% · 60d —
 
 _Volatility labels are sticky: a band must hold for 3 readings before the label changes._
 
@@ -58,28 +58,28 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 | Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
 |------|------------:|------:|---------:|-------|--------|----:|------------|
+| 2026-10-27 | 3.703 | +0.90% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.37% | equity | hold | 0.94 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-26 | 3.670 | +0.47% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -3.24% | equity | hold | 0.87 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-23 | 3.652 | -0.07% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.69% | equity | hold | 0.87 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |
-| 2026-10-22 | 3.655 | -1.18% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.63% | equity | hold | 0.89 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |
-| 2026-10-21 | 3.699 | +0.31% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.48% | equity | hold | 0.82 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |
-| 2026-10-20 | 3.687 | -0.46% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -2.78% | equity | hold | 0.80 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-19 | 3.704 | +0.14% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.33% | equity | hold | 0.82 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-22 | 3.655 | -1.18% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -3.63% | equity | hold | 0.90 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |
+| 2026-10-21 | 3.699 | +0.31% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.48% | equity | hold | 0.83 | <img src="docs/assets/vol-compressing.svg" alt="compressing" width="19" height="12"> |
+| 2026-10-20 | 3.687 | -0.46% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -2.78% | equity | hold | 0.81 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-19 | 3.704 | +0.14% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -2.33% | equity | hold | 0.83 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-16 | 3.699 | -0.54% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -2.47% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-15 | 3.719 | -0.88% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.94% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-14 | 3.752 | -0.05% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.07% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-13 | 3.754 | -0.53% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.02% | equity | hold | 0.97 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-12 | 3.774 | +0.25% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.49% | equity | hold | 0.97 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-09 | 3.764 | +0.41% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.74% | equity | hold | 1.00 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-14 | 3.752 | -0.05% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.07% | equity | hold | 0.96 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-13 | 3.754 | -0.53% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.02% | equity | hold | 0.98 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-12 | 3.774 | +0.25% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.49% | equity | hold | 0.98 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-09 | 3.764 | +0.41% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.74% | equity | hold | 1.01 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-08 | 3.749 | -0.44% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.15% | equity | hold | 1.02 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-07 | 3.765 | -0.71% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -0.71% | equity | hold | 1.02 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-06 | 3.792 | +0.37% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | 0.00% | equity | hold | 1.04 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-05 | 3.779 | +0.65% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | 0.00% | equity | hold | 1.04 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-05 | 3.779 | +0.65% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | 0.00% | equity | hold | 1.05 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-02 | 3.754 | +1.04% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.42% | equity | hold | 1.03 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-01 | 3.716 | -0.66% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.45% | equity | hold | 0.96 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-09-30 | 3.740 | -0.01% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -0.80% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-09-29 | 3.740 | +0.12% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -0.78% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-10-01 | 3.716 | -0.66% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.45% | equity | hold | 0.97 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
+| 2026-09-30 | 3.740 | -0.01% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -0.80% | equity | hold | 0.96 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 
-_Last 20 of 25 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
+_Last 20 of 27 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
 
 _How these are computed: [docs/methodology.md](docs/methodology.md)._
 <!-- REPORT:END -->
