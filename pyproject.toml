@@ -12,7 +12,7 @@ select = ["E", "F", "I", "B"]
 known-first-party = ["vallmon"]
 
 [tool.mypy]
-files = ["vallmon.py"]
+files = ["vallmon.py", "portfolio_report.py"]
 python_version = "3.9"
 warn_unused_ignores = true
 warn_redundant_casts = true
