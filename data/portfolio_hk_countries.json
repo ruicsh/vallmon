@@ -1,0 +1,1794 @@
+{
+ "countries": {
+  "sedol:6000305": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6002453": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:6005504": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6013693": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6015644": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6030506": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6045180": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6055877": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6075648": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6080396": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6081690": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6097017": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6099671": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6109893": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6136233": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6142780": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6162692": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6171375": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6179755": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6181482": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6191997": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6192150": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6193766": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6193788": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6196152": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6197285": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6208422": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6218089": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6220987": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6226576": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6228828": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6249799": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6264048": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6267359": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6278566": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6280743": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6290054": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6291819": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6295048": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6321954": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6327587": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6333937": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6339872": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6340078": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6345460": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6354251": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6354671": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6369233": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6391935": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6398787": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6408352": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6416139": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6420538": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6422761": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6425395": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6435327": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6435576": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6436557": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6449629": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6455143": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6460794": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6465874": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6480082": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6486314": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6491318": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6527031": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6531827": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6535261": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6535517": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6536112": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6536156": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6536651": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6560995": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6568353": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6574071": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6579010": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6586537": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6600879": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6630940": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6659116": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6671477": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6693772": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6706250": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6707899": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6711566": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6718255": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6718976": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6725299": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6728793": {
+   "country": "Australia",
+   "updated": "2026-11-03"
+  },
+  "sedol:6742340": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6743956": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6782045": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6803247": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6807658": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6810010": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6810429": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6859927": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6867748": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6903556": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6905745": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6905808": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:6913168": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6928560": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6971779": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6972459": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:6990763": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B00HLY1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B00W4D6": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B00XSF9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B018L76": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0190C7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B01B1L9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B01FLR7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B01JCK9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B01RQM3": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B01YCG0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B02ZKQ8": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B045C04": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B04KNF1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B04KP88": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B05NXN7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B07J656": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B09N7M0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0B8Z18": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0B8Z29": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0BM5T8": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0CJMD1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0FXSY3": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0J2D41": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0LMTQ3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0M6DX9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0MP1B0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0MSW50": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0PB4M7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0RJCG9": {
+   "country": "Taiwan",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0T4J94": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0TLGM7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0W3C66": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0WC2B8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B0Y91C1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B14WZ47": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B154564": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B16NHT7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B17N9P6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1DN3X6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1DYPZ5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1G1QD8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1H5082": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1HHFV6": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1HVJ16": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1JNK84": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1L2RC2": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1L3XL6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1P1JS5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1P70H9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1VKYN6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1VRCG6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1W0JF2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1XCJB3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1XDJC7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1YBT08": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1YVKN8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1Z6560": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B1Z7FX0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B236JB2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B23TGR6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B24FZ32": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B27WRM3": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B28SXZ5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B28XTR4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B296ZH4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B297KM7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B29MKF5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B29MXW3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B29SHS5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2NR3Y6": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2Q14Z3": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2Q5H56": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2R2ZC9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2R8HK9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B2RJYH8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B3LX5R0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B3PZ2V5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B3W1335": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B3ZVDV0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B3ZXLP6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B41XC98": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B42SRM0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B433995": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B44ZV94": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4JMX94": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4JSTL6": {
+   "country": "Macau",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4N6NB4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4P8HQ1": {
+   "country": "Macau",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4PFFW4": {
+   "country": "Italy",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4Q1532": {
+   "country": "Luxembourg",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4Q1Y57": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4Q2TX3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4Q4CJ6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4R39F7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4TX8S1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4X3RF7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4XRPN3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B4YX1N2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B544N70": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B54X3L1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B56HH42": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B56KLY9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B57JY24": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B59GZJ7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B5B23W2": {
+   "country": "Macau",
+   "updated": "2026-11-03"
+  },
+  "sedol:B5T50H7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B60FNV8": {
+   "country": "Canada",
+   "updated": "2026-11-03"
+  },
+  "sedol:B60LZR6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B61X7R5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B633D97": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B63DLB5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B676TW7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B67C2G0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B688XD1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B6WY993": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B755514": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B7TWG07": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:B85LKS1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B87RSJ4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B890GY2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B8RZJZ1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B8XBQ96": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B92NYC9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:B92NYF2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BBPD5F0": {
+   "country": "United States",
+   "updated": "2026-11-03"
+  },
+  "sedol:BC9S4J5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD20C13": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD31M48": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD4GT29": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD8GL18": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD9GZX7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD9Q2J2": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BD9Q2R0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDCFSQ5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDDLRK9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDFBQH7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDFF8H3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDFZ4G4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDQZP48": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BDRYVB3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BF0GWS4": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BF5BQF9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BF5L8M0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFD2096": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFD6SZ0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFMKZ63": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFRB2W6": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFSQNZ0": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BFZCJC0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BG0ZMJ9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BG6DZJ8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGHH0L6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGHWHF4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGJW376": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGM5R25": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGN9715": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGQYNN1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGR6KX5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGSN864": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BGY6SV2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BH4H6F2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BH7HM06": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BHR0FS4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BHR7002": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:BHZ6573": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJ9JY53": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJLVDM7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJP0B04": {
+   "country": "Mongolia",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJQQJ85": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJRFW26": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJVBTY1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BJYKB72": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK0SBL1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK1VC94": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK6NTS3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK6YZP5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK72QD3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK8K0W3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BK9PZW2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKDXJH5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKF2W48": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKP5JH9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKPQZT6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKPSJS9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKSCMF6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKWGSQ7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BKX8X23": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BL6B9P1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BL6WGG4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLB6P53": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLC90T0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLD4QD0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLF8533": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLFJ7Y1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLLHKZ1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLPPZP6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLRBRR8": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BLSNGF4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BM90LP6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BM91MJ0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BM93SF4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BM94GQ4": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMB5YK5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMC6XV1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMCP6L9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMCW9V1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMD4D03": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMDJ6Q5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMDMJ87": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMFPS09": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMG40P4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMGKSD6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMGWW30": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMHH632": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMMV2K8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMQ8Q14": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMV9P26": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMW5M00": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMW8R04": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMWYQP0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMX09H0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMX6SZ9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMXWXT6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMYS962": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMZ1C83": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMZ3RS4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BMZC7F8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN2BD13": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN320D6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN320P8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN4GWL9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN4MKV3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN6PP37": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN7HR81": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN7RMD1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BN7SX97": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BND8993": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNDWG50": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNG5JM4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNHQ5S4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNK9Q76": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNMBPD9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNNJRV4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNQ4GF3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNR5PB4": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNT8LN5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNTDT81": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BNYK8H9": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP2TRS6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP4JH17": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP6FB33": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP6G9P4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP6TX62": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BP8L269": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPCS4V5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPGKFW5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPJPDT0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPK3C96": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPLK672": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPR9XV6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPRT9S5": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPXZ192": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BPYM749": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQ0QV95": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQB7ZL7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQGFD56": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQHNQ38": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQKNM37": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQPCNJ2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQS7PQ5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQWJ9K9": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQWNLV6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BQXQK73": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BR3Y6S7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BR4V8Z8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BR4VSK3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRB3857": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRBTW19": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRJ9ZR8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRJBMM8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRT4261": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BRXVS60": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BS5YNY7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BS854D3": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BS9BY18": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BSBMM04": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BSBND71": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BSD3B20": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BSMW270": {
+   "country": "United States",
+   "updated": "2026-11-03"
+  },
+  "sedol:BSRJ362": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BT9QPW8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BT9QTZ9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTBKFG2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTCFVN5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTDQ4G1": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTMQLW7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTNP4P7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BTVMCY5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV0TR57": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV106D0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV1D9W9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV4K4Z5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV6FYB4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV6GRF2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BV9FKS0": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BVDKGC7": {
+   "country": "Switzerland",
+   "updated": "2026-11-03"
+  },
+  "sedol:BVF8CT8": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BVMBTF5": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BVMQ8J7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BW4NKK8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BW9P816": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BWCH5K7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BWGCFG4": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BWJFCD6": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BWJFD11": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BX4ZP06": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BY9D3L9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYMW733": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYNGG26": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYNJJY8": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYNK383": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYNKP98": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYP71J9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYP9J68": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYVDW43": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYVS6J1": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYVSXD4": {
+   "country": "Taiwan",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYW7534": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYX8473": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYYMZN7": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYYN347": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYYNH90": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYZJV17": {
+   "country": "Singapore",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYZQ077": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BYZQ099": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZ04KX9": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZ3T5T2": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZ6C8R7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZ9NS11": {
+   "country": "China",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZBY9R5": {
+   "country": "Hong Kong",
+   "updated": "2026-11-03"
+  },
+  "sedol:BZBZHK7": {
+   "country": "China",
+   "updated": "2026-11-03"
+  }
+ },
+ "updated": "2026-11-03",
+ "version": 1
+}
