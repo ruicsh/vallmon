@@ -1,0 +1,57 @@
+name: portfolio-report
+
+on:
+  schedule:
+    # 22:30 UTC on weekdays - after the US close (21:00 UTC), so the moves are
+    # final for every major region. The VALL switch job stays at 18:00 UTC.
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-report-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint, type-check and test
+        run: |
+          ruff check .
+          mypy
+          python -m pytest -q
+
+      - name: Build portfolio report
+        run: python portfolio_report.py build
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/PORTFOLIO.md \
+                  data/portfolio_holdings.json \
+                  data/portfolio_symbols.json \
+                  data/portfolio_hk_countries.json
+          if git diff --staged --quiet; then
+            echo "No changes - nothing to commit."
+          else
+            git commit -m "chore: update VALL portfolio report ($(date -u +%Y-%m-%d))"
+            # main may have moved since checkout; replay our commit on top of it.
+            git pull --rebase
+            git push
+          fi
