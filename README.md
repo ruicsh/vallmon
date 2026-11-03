@@ -128,7 +128,29 @@ python vallmon.py history         # recent readings with a trend sparkline
 python vallmon.py drawdown        # drawdown from the trailing peak + switch state
 python vallmon.py backtest VT     # replay the switch over a long history (read-only)
 python vallmon.py report          # regenerate the findings section above
+python portfolio_report.py build  # rebuild reports/PORTFOLIO.md from holdings + quotes
 ```
+
+### Portfolio report
+
+`reports/PORTFOLIO.md` is a full stock-level view of VALL: every equity line,
+its latest one-day move, and its ICB sector and market-cap band. It is rebuilt
+by `portfolio_report.py`, which:
+
+- re-fetches Vanguard's complete holdings file on every run, so additions and
+  removals are picked up automatically;
+- resolves tickers to Yahoo symbols and caches them in
+  `data/portfolio_symbols.json` (keyed by SEDOL, so a returning line keeps its
+  old mapping);
+- caches Hong Kong issuer-country lookups in
+  `data/portfolio_hk_countries.json`;
+- compares the current holdings with `data/portfolio_holdings.json` and prints
+  an **Holdings changes** section in the report.
+
+The first run does the name searches and profile lookups; later runs only
+refresh holdings and quotes, resolving new lines as they appear. Use
+`--refresh-symbols` to rebuild the symbol and country maps, or `--no-search`
+to skip Yahoo name search when offline.
 
 ### Development
 
@@ -151,12 +173,19 @@ data-update job only runs on the schedule or a manual dispatch.
 | Path                            | Purpose                                                                   |
 | ------------------------------- | ------------------------------------------------------------------------- |
 | `vallmon.py`                    | fetch -> clean -> compute -> append -> report                             |
+| `portfolio_report.py`           | build the full holdings report from Vanguard + Yahoo quote data           |
 | `data/delta_sigma.csv`          | append-only metric log (Δσ, daily volume, switch state, term-structure σ) |
+| `data/portfolio_holdings.json`  | previous holdings snapshot, used for the change report                    |
+| `data/portfolio_symbols.json`   | cached SEDOL -> Yahoo symbol map                                          |
+| `data/portfolio_hk_countries.json` | cached Hong Kong issuer-country map                                    |
+| `reports/PORTFOLIO.md`          | full holdings and latest one-day moves, by region, sector and market cap  |
 | `README.md`                     | this file; the findings section is auto-updated                           |
 | `docs/methodology.md`           | how the metrics are computed and what they mean                           |
 | `docs/backtest.md`              | recorded backtests across global, regional and long-history proxies       |
 | `tests/test_vallmon.py`         | unit tests for the metric, fetch, persistence and CLI                     |
+| `tests/test_portfolio_report.py` | unit tests for symbol mapping, name matching and holdings changes        |
 | `.github/workflows/vallmon.yml` | daily scheduler + lint/type-check/test job                                |
+| `.github/workflows/portfolio.yml` | 22:30 UTC daily rebuild of `reports/PORTFOLIO.md`                      |
 | `requirements.txt`              | runtime dependencies (`tzdata`)                                           |
 | `requirements-dev.txt`          | development dependencies (pytest, ruff, mypy)                             |
 | `pyproject.toml`                | ruff / mypy / pytest configuration                                        |
