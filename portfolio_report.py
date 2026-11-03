@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""portfolio_report - build reports/PORTFOLIO.md from Vanguard holdings.
+"""portfolio_report - build the full VALL holdings report.
 
 The fund is VALL, the Vanguard FTSE Global All-Cap UCITS ETF USD Acc
 (ISIN IE000VAHT5T0). The report lists every equity line in the fund with its
 latest one-day move, grouped by region and sector.
+
+The report is an input to publish_site.py, not a committed artifact. The
+publish workflow writes it to $RUNNER_TEMP; the default local path
+reports/PORTFOLIO.md is git-ignored.
 
 Data flow:
 
     Vanguard GraphQL holdings (5 pages, re-fetched every run)
         -> resolve each line to a Yahoo symbol (cache: data/portfolio_symbols.json)
         -> Yahoo quote endpoint (2,000 symbols per request, gzip)
-        -> reports/PORTFOLIO.md
+        -> portfolio report (default: reports/PORTFOLIO.md, git-ignored)
 
 Vanguard changes the holdings file from time to time. The report always uses
 the current file: new lines are resolved on the run they appear, removed lines
@@ -24,7 +28,7 @@ returns later keeps its resolved symbol. Negative search results are cached for
 build.
 
 Commands:
-    build   fetch, resolve, quote and write reports/PORTFOLIO.md
+    build   fetch, resolve, quote and write the portfolio report
 """
 
 from __future__ import annotations
@@ -1790,12 +1794,12 @@ def build(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command")
-    build_parser = sub.add_parser("build", help="fetch and write reports/PORTFOLIO.md")
+    build_parser = sub.add_parser("build", help="fetch and write the portfolio report")
     build_parser.add_argument(
         "--report",
         type=Path,
         default=REPORT_PATH,
-        help="output path (default: reports/PORTFOLIO.md)",
+        help="output path (default: reports/PORTFOLIO.md, git-ignored)",
     )
     build_parser.add_argument(
         "--refresh-symbols",

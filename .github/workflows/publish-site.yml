@@ -1,0 +1,78 @@
+name: publish-site
+
+on:
+  schedule:
+    # 23:00 UTC on weekdays - after the 18:00 drawdown update. The portfolio
+    # fetch happens here so the only published report artifact is the site.
+    - cron: "0 23 * * 1-5"
+  workflow_dispatch:
+
+# The default token writes the refreshed portfolio caches back to this repo.
+# The site checkout below uses a PAT so its push also triggers Pages.
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-site
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check out the site
+        uses: actions/checkout@v4
+        with:
+          repository: ruicsh/ruicsh.github.io
+          token: ${{ secrets.WEBSITE_REPO_TOKEN }}
+          path: website
+
+      - name: Build the portfolio report (temporary)
+        run: python portfolio_report.py build --report "$RUNNER_TEMP/PORTFOLIO.md"
+
+      - name: Render the site
+        run: |
+          python publish_site.py \
+            --target website \
+            --portfolio "$RUNNER_TEMP/PORTFOLIO.md"
+
+      - name: Commit and push the site
+        working-directory: website
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/pages/projects/vallmon.astro \
+                  src/data/vallmon.json \
+                  public/projects/vallmon
+          if git diff --staged --quiet; then
+            echo "No changes - nothing to publish."
+          else
+            git commit -m "chore(vallmon): publish reports ($(date -u +%Y-%m-%d))"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Commit the refreshed portfolio caches
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/portfolio_holdings.json \
+                  data/portfolio_symbols.json \
+                  data/portfolio_hk_countries.json
+          if git diff --staged --quiet; then
+            echo "No cache changes - nothing to commit."
+          else
+            git commit -m "chore(portfolio): refresh caches ($(date -u +%Y-%m-%d))"
+            git pull --rebase
+            git push
+          fi

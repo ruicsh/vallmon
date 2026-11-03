@@ -10,6 +10,7 @@ context: they describe dispersion, not direction, and never change the switch.
 [How the numbers work →](docs/methodology.md)
 
 _Updated automatically each trading day by the GitHub Actions workflow._
+_Read the published HTML version at <https://ruicsh.github.io/projects/vallmon>._
 
 <!-- REPORT:START -->
 _As of 2026-11-03 · 32 readings · 2026-09-21 → 2026-11-03_
@@ -128,14 +129,18 @@ python vallmon.py history         # recent readings with a trend sparkline
 python vallmon.py drawdown        # drawdown from the trailing peak + switch state
 python vallmon.py backtest VT     # replay the switch over a long history (read-only)
 python vallmon.py report          # regenerate the findings section above
-python portfolio_report.py build  # rebuild reports/PORTFOLIO.md from holdings + quotes
+python portfolio_report.py build --report /tmp/PORTFOLIO.md  # build the portfolio input
+python publish_site.py --target ../ruicsh.github.io \
+    --portfolio /tmp/PORTFOLIO.md                            # publish the HTML site
 ```
 
 ### Portfolio report
 
-`reports/PORTFOLIO.md` is a full stock-level view of VALL: every equity line,
-its latest one-day move, and its ICB sector and market-cap band. It is rebuilt
-by `portfolio_report.py`, which:
+`portfolio_report.py` builds a full stock-level view of VALL: every equity
+line, its latest one-day move, and its ICB sector and market-cap band. The
+report is an input to the site publisher, not a committed artifact — the
+`publish-site` workflow writes it to `$RUNNER_TEMP` and only the rendered site
+is published. The builder:
 
 - re-fetches Vanguard's complete holdings file on every run, so additions and
   removals are picked up automatically;
@@ -151,6 +156,23 @@ The first run does the name searches and profile lookups; later runs only
 refresh holdings and quotes, resolving new lines as they appear. Use
 `--refresh-symbols` to rebuild the symbol and country maps, or `--no-search`
 to skip Yahoo name search when offline.
+
+### Published site
+
+`publish_site.py` renders the drawdown monitor and the portfolio report into
+one HTML page at <https://ruicsh.github.io/projects/vallmon>. It writes the
+Astro page, a structured JSON payload and the static assets into a site
+checkout; the site build turns that into HTML. No Markdown is published, and
+the site repository needs no manual edits. The page template lives at
+`site/vallmon.astro`.
+
+The `publish-site` workflow runs weekdays at 23:00 UTC (after the 18:00
+drawdown update). It builds the portfolio into `$RUNNER_TEMP`, renders the
+site, pushes the page/payload/assets to `ruicsh/ruicsh.github.io`, and commits
+only the refreshed portfolio caches back to this repository. The site push
+triggers Pages, so every daily report update is a normal GitHub Actions commit.
+It needs a `WEBSITE_REPO_TOKEN` secret with `contents: write` on the site
+repository.
 
 ### Development
 
@@ -174,18 +196,20 @@ data-update job only runs on the schedule or a manual dispatch.
 | ------------------------------- | ------------------------------------------------------------------------- |
 | `vallmon.py`                    | fetch -> clean -> compute -> append -> report                             |
 | `portfolio_report.py`           | build the full holdings report from Vanguard + Yahoo quote data           |
+| `publish_site.py`               | render the monitor and portfolio into the website page + payload          |
+| `site/vallmon.astro`            | self-contained Astro page published to `/projects/vallmon`                |
 | `data/delta_sigma.csv`          | append-only metric log (Δσ, daily volume, switch state, term-structure σ) |
 | `data/portfolio_holdings.json`  | previous holdings snapshot, used for the change report                    |
 | `data/portfolio_symbols.json`   | cached SEDOL -> Yahoo symbol map                                          |
 | `data/portfolio_hk_countries.json` | cached Hong Kong issuer-country map                                    |
-| `reports/PORTFOLIO.md`          | full holdings and latest one-day moves, by region, sector and market cap  |
 | `README.md`                     | this file; the findings section is auto-updated                           |
 | `docs/methodology.md`           | how the metrics are computed and what they mean                           |
 | `docs/backtest.md`              | recorded backtests across global, regional and long-history proxies       |
 | `tests/test_vallmon.py`         | unit tests for the metric, fetch, persistence and CLI                     |
 | `tests/test_portfolio_report.py` | unit tests for symbol mapping, name matching and holdings changes        |
+| `tests/test_publish_site.py`    | unit tests for report parsing and site payload rendering                  |
 | `.github/workflows/vallmon.yml` | daily scheduler + lint/type-check/test job                                |
-| `.github/workflows/portfolio.yml` | 22:30 UTC daily rebuild of `reports/PORTFOLIO.md`                      |
-| `requirements.txt`              | runtime dependencies (`tzdata`)                                           |
+| `.github/workflows/publish-site.yml` | 23:00 UTC build + publish of the HTML site to ruicsh.github.io      |
+| `requirements.txt`              | runtime dependencies (`tzdata`, `markdown`)                               |
 | `requirements-dev.txt`          | development dependencies (pytest, ruff, mypy)                             |
 | `pyproject.toml`                | ruff / mypy / pytest configuration                                        |

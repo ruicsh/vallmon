@@ -9,3 +9,6 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# generated portfolio report input (built into $RUNNER_TEMP by publish-site)
+reports/

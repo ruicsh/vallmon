@@ -1,0 +1,1119 @@
+---
+import "../../styles/global.css";
+import Footer from "../../components/Footer.astro";
+import report from "../../data/vallmon.json";
+
+const { monitor, portfolio } = report;
+
+const stateLabel = monitor.state ? monitor.state.toLowerCase() : "unknown";
+const stateTone =
+  stateLabel === "cash"
+    ? "border-rose-300 bg-rose-50 text-rose-800"
+    : "border-emerald-300 bg-emerald-50 text-emerald-800";
+
+const series = monitor.series;
+const recentSeries = series.slice(-90);
+const drawdownValues = recentSeries.map((point) => point.drawdown);
+const deltaValues = recentSeries
+  .map((point) => point.delta_sigma)
+  .filter((value): value is number => value !== null);
+
+function linePath(
+  values: number[],
+  width = 720,
+  height = 180,
+  pad = 12,
+  forceMin?: number,
+  forceMax?: number,
+): string {
+  if (values.length < 2) return "";
+  const observedMin = Math.min(...values);
+  const observedMax = Math.max(...values);
+  const min = forceMin !== undefined ? Math.min(forceMin, observedMin) : observedMin;
+  const max = forceMax !== undefined ? Math.max(forceMax, observedMax) : observedMax;
+  const span = max - min || 1;
+  return values
+    .map((value, index) => {
+      const x = pad + (index / (values.length - 1)) * (width - 2 * pad);
+      const y = height - pad - ((value - min) / span) * (height - 2 * pad);
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+const drawdownFloor = Math.min(-16, ...drawdownValues);
+const drawdownPath = linePath(drawdownValues, 720, 180, 12, drawdownFloor, 0);
+const deltaPath = linePath(deltaValues, 720, 120, 10);
+const drawdownThresholdY =
+  180 - 12 - ((-15 - drawdownFloor) / (0 - drawdownFloor)) * (180 - 24);
+const firstSeries = series[0]?.date ?? "";
+const lastSeries = series[series.length - 1]?.date ?? "";
+
+function numeric(value: string | undefined): number {
+  if (!value) return 0;
+  const match = value.replace(/,/g, "").match(/[-+]?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function tone(value: string | undefined): string {
+  const amount = numeric(value);
+  if (amount > 0) return "text-emerald-700";
+  if (amount < 0) return "text-rose-700";
+  return "text-slate-500";
+}
+
+function arrow(direction: string | null | undefined): string {
+  if (direction === "up") return "▲";
+  if (direction === "down") return "▼";
+  return "•";
+}
+
+function arrowTone(direction: string | null | undefined): string {
+  if (direction === "up") return "text-emerald-700";
+  if (direction === "down") return "text-rose-700";
+  return "text-slate-400";
+}
+
+const regionRows = portfolio.region.rows;
+const sectorRows = portfolio.sector.rows;
+const capRows = portfolio.market_cap.rows;
+const tabs = [
+  { id: "monitor", label: "Drawdown monitor" },
+  { id: "portfolio", label: "Portfolio" },
+  { id: "holdings", label: "All holdings" },
+  { id: "method", label: "Method" },
+  { id: "backtests", label: "Backtests" },
+];
+---
+
+<!doctype html>
+<html lang="en" class="m-0 w-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
+    />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="generator" content={Astro.generator} />
+    <meta
+      name="description"
+      content="A daily drawdown switch monitor and full holdings report for Vanguard's FTSE Global All-Cap ETF (VALL.L)."
+    />
+    <meta property="og:title" content="VALL Monitor — Rui Costa" />
+    <meta
+      property="og:description"
+      content="A daily drawdown switch monitor and full holdings report for Vanguard's FTSE Global All-Cap ETF (VALL.L)."
+    />
+    <title>VALL Monitor — Rui Costa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="m-0 flex w-full flex-col">
+  <header class="fixed z-50 flex h-20 w-full items-center justify-center border-b border-slate-200 bg-white">
+    <div class="flex h-20 w-full max-w-6xl items-center justify-between px-4">
+      <a href="/" class="font-condensed text-2xl uppercase md:text-xl">
+        <span class="font-black">Rui</span> Costa
+      </a>
+      <div class="flex items-center gap-4 text-sm">
+        <a class="text-slate-500 hover:text-orange" href="https://github.com/ruicsh/vallmon">GitHub</a>
+        <a class="rounded-full border border-slate-300 px-4 py-2 font-condensed font-semibold uppercase hover:border-orange hover:text-orange" href="/">
+          ← Back to site
+        </a>
+      </div>
+    </div>
+  </header>
+  <main class="w-full pb-24">
+    <header class="mx-auto w-full max-w-6xl px-4 pt-28 pb-8">
+      <p class="font-condensed text-sm font-semibold tracking-[0.2em] text-orange uppercase">
+        Project · market monitor
+      </p>
+      <h1 class="mt-3">VALL Monitor</h1>
+      <p class="mt-4 max-w-3xl text-lg text-slate-600">
+        A daily reading of Vanguard's FTSE Global All-Cap UCITS ETF
+        (<span class="font-semibold text-slate-900">VALL.L</span>) and the
+        question that matters when spending from it: in a drawdown, sell the
+        fund or draw from cash? The same page carries the full 6,980-line
+        portfolio and the backtests behind the rule.
+      </p>
+      <div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+        <span>Updated {monitor.as_of ?? "—"}</span>
+        <span aria-hidden="true">·</span>
+        <a class="border-b border-slate-300 pb-0.5 hover:text-orange" href="https://github.com/ruicsh/vallmon">
+          Source on GitHub
+        </a>
+        <a class="border-b border-slate-300 pb-0.5 hover:text-orange" href="/projects/vallmon/data/delta_sigma.csv">
+          Readings CSV
+        </a>
+      </div>
+      <p class="mt-6 max-w-3xl border-l-2 border-orange pl-4 text-sm text-slate-500">
+        A one-day move is noise more often than signal. These pages describe what
+        is happening and what the rule says; they are not investment advice.
+      </p>
+    </header>
+
+    <nav
+      class="sticky top-20 z-30 border-y border-slate-200 bg-white/95 backdrop-blur"
+      aria-label="Report sections"
+      role="tablist"
+    >
+      <div class="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-2 py-2 sm:px-4">
+        {
+          tabs.map((tab, index) => (
+            <button
+              type="button"
+              class="report-tab shrink-0 rounded-full px-4 py-2 font-condensed text-sm font-semibold tracking-wide uppercase transition-colors"
+              id={`tab-${tab.id}`}
+              role="tab"
+              data-tab={tab.id}
+              aria-controls={`panel-${tab.id}`}
+              aria-selected={index === 0 ? "true" : "false"}
+            >
+              {tab.label}
+            </button>
+          ))
+        }
+      </div>
+    </nav>
+
+    <!-- Drawdown monitor -->
+    <article id="panel-monitor" data-panel role="tabpanel" aria-labelledby="tab-monitor" class="mx-auto w-full max-w-6xl px-4 pt-10">
+      <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div class:list={["rounded-2xl border p-6 sm:p-8", stateTone]}>
+          <div class="flex flex-wrap items-baseline justify-between gap-3">
+            <p class="font-condensed text-sm font-semibold tracking-[0.18em] uppercase">
+              Spending state
+            </p>
+            <p class="text-xs opacity-70">
+              since {monitor.since ?? "—"} · {monitor.unchanged_for ?? 0} readings unchanged
+            </p>
+          </div>
+          <p class="mt-3 font-condensed text-5xl font-black uppercase sm:text-6xl">
+            {stateLabel}
+          </p>
+          <p class="mt-2 text-lg">{monitor.action}</p>
+          <div class="mt-7">
+            <p class="text-sm font-semibold">
+              Drawdown {monitor.drawdown?.toFixed(2) ?? "—"}% · switch at -15%
+            </p>
+            <div class="relative mt-2 h-3 overflow-hidden rounded-full bg-white/70">
+              <div
+                class="absolute inset-y-0 left-0 rounded-full bg-current opacity-80"
+                style={`width: ${Math.min(100, ((monitor.drawdown ?? 0) / -15) * 100)}%`}
+              >
+              </div>
+              <div class="absolute inset-y-0 right-0 w-px bg-current opacity-40"></div>
+            </div>
+            <div class="mt-1 flex justify-between text-xs font-semibold opacity-60">
+              <span>0%</span>
+              <span>-15%</span>
+            </div>
+            <p class="mt-2 text-sm opacity-80">
+              {monitor.distance} to the switch · peak {monitor.peak?.value.toFixed(4) ?? "—"} on {monitor.peak?.date ?? "—"}
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          {
+            [
+              { label: "Δσ", value: monitor.delta_sigma?.toFixed(2) ?? "—", note: monitor.volatility ?? "" },
+              { label: "Realised σ", value: monitor.sigma !== null ? `${monitor.sigma.toFixed(2)}%` : "—", note: "20-day, annualised" },
+              { label: "Baseline μ", value: monitor.baseline !== null ? `${monitor.baseline.toFixed(2)}%` : "—", note: "trailing 90-day mean" },
+              { label: "Term slope", value: monitor.slope?.toFixed(2) ?? "—", note: monitor.slope_label ?? "" },
+              { label: "Latest volume", value: monitor.volume || "—", note: "units" },
+              { label: "Δσ range", value: `${monitor.delta_sigma_min?.toFixed(2) ?? "—"}–${monitor.delta_sigma_max?.toFixed(2) ?? "—"}`, note: `median ${monitor.delta_sigma_median?.toFixed(2) ?? "—"}` },
+            ].map((metric) => (
+              <div class="rounded-xl border border-slate-200 p-4">
+                <p class="text-xs font-semibold tracking-wide text-slate-500 uppercase">{metric.label}</p>
+                <p class="mt-1 font-condensed text-2xl font-bold text-slate-900">{metric.value}</p>
+                <p class="text-xs text-slate-500">{metric.note}</p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        {monitor.window}
+      </div>
+
+      <div class="mt-10 grid gap-8 lg:grid-cols-2">
+        <figure>
+          <figcaption class="flex items-baseline justify-between">
+            <span class="font-condensed text-lg font-bold uppercase">Drawdown</span>
+            <span class="text-xs text-slate-500">{firstSeries} → {lastSeries}</span>
+          </figcaption>
+          <svg viewBox="0 0 720 180" preserveAspectRatio="none" class="mt-3 h-44 w-full rounded-xl border border-slate-200 bg-white" role="img" aria-label="Drawdown history with the -15% switch threshold">
+            <line x1="12" y1={drawdownThresholdY} x2="708" y2={drawdownThresholdY} stroke="#fca5a5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></line>
+            <text x="708" y={drawdownThresholdY - 4} text-anchor="end" class="fill-rose-500 text-[11px]">-15%</text>
+            <path d={drawdownPath} fill="none" stroke="#f17f5a" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+          </svg>
+        </figure>
+        <figure>
+          <figcaption class="flex items-baseline justify-between">
+            <span class="font-condensed text-lg font-bold uppercase">Rolling Variance Delta</span>
+            <span class="text-xs text-slate-500">last {deltaValues.length} readings</span>
+          </figcaption>
+          <svg viewBox="0 0 720 120" preserveAspectRatio="none" class="mt-3 h-44 w-full rounded-xl border border-slate-200 bg-white" role="img" aria-label="Rolling Variance Delta history">
+            <path d={deltaPath} fill="none" stroke="#0f172a" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+          </svg>
+        </figure>
+      </div>
+
+      <div class="mt-10">
+        <h2>Recent readings</h2>
+        <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+          <table class="report-table w-full min-w-[760px] text-sm">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="text-right">Close (GBP)</th>
+                <th class="text-right">Day</th>
+                <th class="text-right">Drawdown</th>
+                <th>State</th>
+                <th>Signal</th>
+                <th class="text-right">Δσ</th>
+                <th>Volatility</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                monitor.recent.map((row) => (
+                  <tr>
+                    <td class="whitespace-nowrap">{row.date}</td>
+                    <td class="text-right tabular-nums">{row.close?.toFixed(3)}</td>
+                    <td class:list={["text-right tabular-nums", tone(String(row.day))]}>
+                      {arrow(row.direction)} {row.day !== null ? `${row.day > 0 ? "+" : ""}${row.day.toFixed(2)}%` : "—"}
+                    </td>
+                    <td class="text-right tabular-nums text-rose-700">{row.drawdown?.toFixed(2)}%</td>
+                    <td class="capitalize">{row.state}</td>
+                    <td>{row.signal}</td>
+                    <td class="text-right tabular-nums">{row.delta_sigma?.toFixed(2)}</td>
+                    <td class="capitalize">
+                      <span class="inline-flex items-center gap-2">
+                        <img src={`/projects/vallmon/assets/vol-${row.volatility ?? "normal"}.svg`} alt="" width="19" height="12" />
+                        {row.volatility}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3 text-sm text-slate-500">
+          Last {monitor.recent.length} of {monitor.readings} readings. The full series is in the
+          <a class="border-b border-slate-300 hover:text-orange" href="/projects/vallmon/data/delta_sigma.csv">CSV</a>.
+        </p>
+      </div>
+
+      <div class="mt-10 grid gap-8 lg:grid-cols-[1fr_1fr]">
+        <div>
+          <h2>Term structure</h2>
+          <ul class="mt-4 space-y-3">
+            {
+              monitor.terms.map((term) => (
+                <li class="flex items-center gap-3">
+                  <span class="w-10 text-sm text-slate-500">{term.window}d</span>
+                  <span class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <span
+                      class="block h-full rounded-full bg-slate-900"
+                      style={`width: ${term.sigma !== null ? Math.min(100, (term.sigma / 20) * 100) : 0}%`}
+                    />
+                  </span>
+                  <span class="w-16 text-right text-sm tabular-nums">
+                    {term.sigma !== null ? `${term.sigma.toFixed(2)}%` : "—"}
+                  </span>
+                </li>
+              ))
+            }
+          </ul>
+          <p class="mt-3 text-sm text-slate-500">Annualised realised volatility for 10, 20, 30 and 60 trading-day windows.</p>
+        </div>
+        <div>
+          <h2>Signal history</h2>
+          <div class="report-prose mt-4" set:html={monitor.signal_history_html} />
+        </div>
+      </div>
+    </article>
+
+    <!-- Portfolio -->
+    <article id="panel-portfolio" data-panel role="tabpanel" aria-labelledby="tab-portfolio" class="mx-auto w-full max-w-6xl px-4 pt-10">
+      <div class="flex flex-wrap items-baseline justify-between gap-3">
+        <div>
+          <h2>Portfolio — daily moves</h2>
+          <p class="mt-1 text-sm text-slate-500">
+            Snapshot {portfolio.snapshot ?? "—"} · holdings as of {portfolio.holdings_as_of ?? "—"}
+          </p>
+        </div>
+        <a class="text-sm text-slate-500 underline decoration-slate-300 underline-offset-4 hover:text-orange" href="#holdings" data-jump="holdings">
+          Search all 6,980 lines →
+        </a>
+      </div>
+
+      <dl class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {
+          portfolio.at_a_glance.map((row) => (
+            <div class="rounded-xl border border-slate-200 p-4">
+              <dt class="text-xs font-semibold tracking-wide text-slate-500 uppercase">{row.Metric}</dt>
+              <dd class="mt-1 text-lg leading-snug font-semibold text-slate-900">{row.Value}</dd>
+            </div>
+          ))
+        }
+      </dl>
+
+      <div class="mt-10 grid gap-10">
+        <div>
+          <h3 class="font-condensed text-xl font-bold uppercase">By region</h3>
+          <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+            <table class="report-table w-full text-sm">
+              <thead>
+                <tr>
+                  {portfolio.region.headers.map((header) => <th class:list={[header !== "Region" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  regionRows.map((row) => (
+                    <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                      <td class="whitespace-nowrap">{row[0]}</td>
+                      <td class="text-right tabular-nums">{row[1]}</td>
+                      <td class="text-right tabular-nums">
+                        <span class="relative inline-block min-w-16">
+                          <span class="absolute inset-y-0 left-0 rounded-sm bg-orange/20" style={`width: ${Math.min(100, numeric(row[2]) * 1.5)}%`} />
+                          <span class="relative">{row[2]}</span>
+                        </span>
+                      </td>
+                      <td class="text-right tabular-nums">{row[3]}</td>
+                      <td class="text-right tabular-nums text-emerald-700">{row[4]}</td>
+                      <td class="text-right tabular-nums text-rose-700">{row[5]}</td>
+                      <td class="text-right tabular-nums">{row[6]}</td>
+                      <td class:list={["text-right tabular-nums", tone(row[7])]}>{row[7]}</td>
+                      <td class:list={["text-right font-semibold tabular-nums", tone(row[8])]}>{row[8]}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-condensed text-xl font-bold uppercase">By sector</h3>
+          <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+            <table class="report-table w-full text-sm">
+              <thead>
+                <tr>
+                  {portfolio.sector.headers.map((header) => <th class:list={[header !== "Sector" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  sectorRows.map((row) => (
+                    <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                      <td class="whitespace-nowrap">{row[0]}</td>
+                      <td class="text-right tabular-nums">{row[1]}</td>
+                      <td class="text-right tabular-nums">
+                        <span class="relative inline-block min-w-16">
+                          <span class="absolute inset-y-0 left-0 rounded-sm bg-orange/20" style={`width: ${Math.min(100, numeric(row[2]) * 2.5)}%`} />
+                          <span class="relative">{row[2]}</span>
+                        </span>
+                      </td>
+                      <td class="text-right tabular-nums">{row[3]}</td>
+                      <td class="text-right tabular-nums text-emerald-700">{row[4]}</td>
+                      <td class="text-right tabular-nums text-rose-700">{row[5]}</td>
+                      <td class="text-right tabular-nums">{row[6]}</td>
+                      <td class:list={["text-right tabular-nums", tone(row[7])]}>{row[7]}</td>
+                      <td class:list={["text-right font-semibold tabular-nums", tone(row[8])]}>{row[8]}</td>
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-10">
+        <h3 class="font-condensed text-xl font-bold uppercase">By market cap</h3>
+        <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+          <table class="report-table w-full max-w-3xl text-sm">
+            <thead>
+              <tr>{portfolio.market_cap.headers.map((header) => <th class:list={[header !== "Cap" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}</tr>
+            </thead>
+            <tbody>
+              {
+                capRows.map((row) => (
+                  <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                    <td>{row[0]}</td>
+                    <td class="text-right tabular-nums">{row[1]}</td>
+                    <td class="text-right tabular-nums">{row[2]}</td>
+                    <td class="text-right tabular-nums">{row[3]}</td>
+                    <td class="text-right tabular-nums text-emerald-700">{row[4]}</td>
+                    <td class="text-right tabular-nums text-rose-700">{row[5]}</td>
+                    <td class="text-right tabular-nums">{row[6]}</td>
+                    <td class:list={["text-right tabular-nums", tone(row[7])]}>{row[7]}</td>
+                    <td class:list={["text-right font-semibold tabular-nums", tone(row[8])]}>{row[8]}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-10 grid gap-6">
+        <details class="rounded-xl border border-slate-200 p-4">
+          <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Region × market cap</summary>
+          <p class="mt-2 text-sm text-slate-500">Weighted one-day move. A dash means the region has no priced line in that cap band.</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="report-table w-full text-sm">
+              <thead>
+                <tr>{portfolio.region_market_cap.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
+              </thead>
+              <tbody>
+                {
+                  portfolio.region_market_cap.rows.map((row) => (
+                    <tr>
+                      {row.map((cell, index) => (
+                        <td class:list={[index > 0 && "text-right tabular-nums", index > 0 && tone(cell), index === row.length - 1 && "font-semibold"]}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="rounded-xl border border-slate-200 p-4">
+          <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Region × sector</summary>
+          <p class="mt-2 text-sm text-slate-500">Weighted one-day move. A dash means the region has no priced line in that sector.</p>
+          <div class="mt-3 overflow-x-auto">
+            <table class="report-table w-full text-sm">
+              <thead>
+                <tr>{portfolio.region_sector.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
+              </thead>
+              <tbody>
+                {
+                  portfolio.region_sector.rows.map((row) => (
+                    <tr>
+                      {row.map((cell, index) => (
+                        <td class:list={[index > 0 && "text-right tabular-nums", index > 0 && tone(cell), index === row.length - 1 && "font-semibold"]}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                }
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <div class="mt-12">
+        <h3 class="font-condensed text-xl font-bold uppercase">Largest holdings</h3>
+        <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+          <table class="report-table w-full min-w-[720px] text-sm">
+            <thead>
+              <tr>
+                <th>Stock</th><th>Ticker</th><th>Cap</th><th>Region</th><th>Sector</th>
+                <th class="text-right">Weight</th><th class="text-right">Day</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                portfolio.largest.map((row) => (
+                  <tr>
+                    <td class="font-medium">{row.stock}</td>
+                    <td><code>{row.ticker}</code></td>
+                    <td>{row.Cap}</td>
+                    <td>{row.Region}</td>
+                    <td>{row.Sector}</td>
+                    <td class="text-right tabular-nums">{row.Weight}</td>
+                    <td class:list={["text-right tabular-nums", arrowTone(row.direction)]}>
+                      {arrow(row.direction)} {row["Day %"]}
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <details class="mt-6 rounded-xl border border-slate-200 p-4">
+        <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Largest holdings by market cap</summary>
+        <p class="mt-2 text-sm text-slate-500">Large ≥ $10B · Mid $2–$10B · Small < $2B.</p>
+        <div class="mt-4 grid gap-6 lg:grid-cols-3">
+          {
+            (["Large", "Mid", "Small"] as const).map((label) => (
+              <div>
+                <h4 class="font-condensed text-sm font-bold uppercase">{label} cap</h4>
+                <table class="report-table mt-2 w-full text-xs">
+                  <thead>
+                    <tr><th>Stock</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr>
+                  </thead>
+                  <tbody>
+                    {portfolio.by_cap[label].map((row) => (
+                      <tr>
+                        <td class="max-w-40 truncate" title={row.stock}>{row.stock}</td>
+                        <td class="text-right tabular-nums">{row.Weight}</td>
+                        <td class:list={["text-right tabular-nums", arrowTone(row.direction)]}>
+                          {arrow(row.direction)} {row["Day %"]}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          }
+        </div>
+      </details>
+
+      <div class="mt-12 grid gap-8 lg:grid-cols-2">
+        <div>
+          <h3 class="font-condensed text-xl font-bold uppercase">Largest moves up</h3>
+          <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+            <table class="report-table w-full text-sm">
+              <thead><tr><th>Stock</th><th>Ticker</th><th>Cap</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr></thead>
+              <tbody>
+                {portfolio.moves_up.map((row) => (
+                  <tr>
+                    <td class="max-w-56 truncate font-medium" title={row.stock}>{row.stock}</td>
+                    <td><code>{row.ticker}</code></td>
+                    <td>{row.Cap}</td>
+                    <td class="text-right tabular-nums">{row.Weight}</td>
+                    <td class="text-right tabular-nums text-emerald-700">{arrow(row.direction)} {row["Day %"]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-condensed text-xl font-bold uppercase">Largest moves down</h3>
+          <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
+            <table class="report-table w-full text-sm">
+              <thead><tr><th>Stock</th><th>Ticker</th><th>Cap</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr></thead>
+              <tbody>
+                {portfolio.moves_down.map((row) => (
+                  <tr>
+                    <td class="max-w-56 truncate font-medium" title={row.stock}>{row.stock}</td>
+                    <td><code>{row.ticker}</code></td>
+                    <td>{row.Cap}</td>
+                    <td class="text-right tabular-nums">{row.Weight}</td>
+                    <td class="text-right tabular-nums text-rose-700">{arrow(row.direction)} {row["Day %"]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-12 grid gap-8 lg:grid-cols-2">
+        <div>
+          <h3 class="font-condensed text-xl font-bold uppercase">Holdings changes</h3>
+          <div class="report-prose mt-3" set:html={portfolio.holdings_changes_html} />
+        </div>
+        <details class="rounded-xl border border-slate-200 p-4">
+          <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Notes and method</summary>
+          <div class="report-prose mt-4" set:html={portfolio.notes_html} />
+        </details>
+      </div>
+    </article>
+
+    <!-- Full holdings -->
+    <article id="panel-holdings" data-panel role="tabpanel" aria-labelledby="tab-holdings" class="mx-auto w-full max-w-6xl px-4 pt-10">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2>All holdings</h2>
+          <p class="mt-1 max-w-2xl text-sm text-slate-500">
+            Every equity line in the fund, grouped by region and sector. Search by
+            name or ticker, filter the table, and sort by weight or daily move.
+          </p>
+        </div>
+        <p class="text-sm text-slate-500" id="holdings-count">Loading…</p>
+      </div>
+
+      <div class="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          Search
+          <input id="holdings-search" type="search" placeholder="Company or ticker" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange" />
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          Region
+          <select id="holdings-region" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange"><option value="">All regions</option></select>
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          Sector
+          <select id="holdings-sector" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange"><option value="">All sectors</option></select>
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          Market cap
+          <select id="holdings-cap" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange"><option value="">All caps</option></select>
+        </label>
+      </div>
+
+      <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
+        <table class="report-table w-full min-w-[900px] text-sm" id="holdings-table">
+          <thead>
+            <tr>
+              <th data-sort="stock" class="cursor-pointer">Stock</th>
+              <th data-sort="ticker" class="cursor-pointer">Ticker</th>
+              <th>Region</th>
+              <th>Sector</th>
+              <th>Country</th>
+              <th>Cap</th>
+              <th data-sort="weight_value" class="cursor-pointer text-right">Weight</th>
+              <th data-sort="day" class="cursor-pointer text-right">Day</th>
+            </tr>
+          </thead>
+          <tbody id="holdings-body">
+            <tr>
+              <td colspan="8" class="py-10 text-center text-slate-500">
+                Full holdings load on demand. <a class="underline" href="https://github.com/ruicsh/vallmon">View the source data</a> if JavaScript is disabled.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+        <span id="holdings-page-label">—</span>
+        <div class="flex gap-2">
+          <button type="button" id="holdings-prev" class="rounded-lg border border-slate-300 px-4 py-2 font-condensed font-semibold uppercase disabled:opacity-40">Previous</button>
+          <button type="button" id="holdings-next" class="rounded-lg border border-slate-300 px-4 py-2 font-condensed font-semibold uppercase disabled:opacity-40">Next</button>
+        </div>
+      </div>
+      <p class="mt-3 text-sm text-slate-500">
+        Quotes are the latest available local-currency session from Yahoo Finance.
+        Unpriced lines stay in the table and show a dash.
+      </p>
+    </article>
+
+    <!-- Method -->
+    <article id="panel-method" data-panel role="tabpanel" aria-labelledby="tab-method" class="mx-auto w-full max-w-4xl px-4 pt-10">
+      <h2>Method</h2>
+      <p class="mt-2 text-slate-600">
+        How the numbers are computed, and what each one does and does not mean.
+        The source of this page is the methodology in the vallmon repository.
+      </p>
+      <div class="report-prose mt-8" set:html={report.methodology_html} />
+    </article>
+
+    <!-- Backtests -->
+    <article id="panel-backtests" data-panel role="tabpanel" aria-labelledby="tab-backtests" class="mx-auto w-full max-w-4xl px-4 pt-10">
+      <h2>Backtests</h2>
+      <p class="mt-2 text-slate-600">
+        Recorded runs of the same switch over global, regional and long-history
+        proxies. These are sanity checks for the rule, not a promise about future
+        returns.
+      </p>
+      <div class="report-prose mt-8" set:html={report.backtests_html} />
+    </article>
+  </main>
+
+  <Footer />
+
+  <style is:global>
+    .report-tab {
+      color: #64748b;
+    }
+
+    .report-tab:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .report-tab[aria-selected="true"] {
+      background: #0f172a;
+      color: #ffffff;
+    }
+
+    .report-table {
+      border-collapse: collapse;
+    }
+
+    .report-table th {
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 0.65rem 0.75rem;
+      text-align: left;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .report-table td {
+      border-bottom: 1px solid #f1f5f9;
+      padding: 0.6rem 0.75rem;
+      vertical-align: top;
+    }
+
+    .report-table tbody tr:hover {
+      background: #fff7f3;
+    }
+
+    .report-prose {
+      color: #334155;
+      font-size: 0.975rem;
+      line-height: 1.7;
+    }
+
+    .report-prose h2 {
+      color: #0f172a;
+      font-family: "Roboto Condensed", sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 2rem 0 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .report-prose h3 {
+      color: #0f172a;
+      font-family: "Roboto Condensed", sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 1.5rem 0 0.5rem;
+      text-transform: uppercase;
+    }
+
+    .report-prose p,
+    .report-prose ul,
+    .report-prose ol,
+    .report-prose blockquote {
+      margin: 0.75rem 0;
+    }
+
+    .report-prose ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+
+    .report-prose ol {
+      list-style: decimal;
+      padding-left: 1.25rem;
+    }
+
+    .report-prose a {
+      color: #0f172a;
+      text-decoration: underline;
+      text-decoration-color: #cbd5e1;
+      text-underline-offset: 3px;
+    }
+
+    .report-prose a:hover {
+      color: #f17f5a;
+      text-decoration-color: #f17f5a;
+    }
+
+    .report-prose code {
+      background: #f1f5f9;
+      border-radius: 0.25rem;
+      font-size: 0.85em;
+      padding: 0.1rem 0.3rem;
+    }
+
+    .report-prose pre {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      padding: 1rem;
+    }
+
+    .report-prose pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+    }
+
+    .report-prose table {
+      border-collapse: collapse;
+      display: block;
+      margin: 1rem 0;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .report-prose th {
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 0.5rem 0.7rem;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    .report-prose td {
+      border-bottom: 1px solid #f1f5f9;
+      padding: 0.5rem 0.7rem;
+      vertical-align: top;
+    }
+
+    .report-prose blockquote {
+      border-left: 2px solid #f17f5a;
+      color: #64748b;
+      padding-left: 1rem;
+    }
+
+    .report-prose strong {
+      color: #0f172a;
+    }
+  </style>
+
+  <script>
+    const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-tab]"));
+    const panels = Array.from(document.querySelectorAll<HTMLElement>("[data-panel]"));
+
+    function showTab(id: string, updateHash = true) {
+      const target = `panel-${id}`;
+      panels.forEach((panel) => {
+        panel.hidden = panel.id !== target;
+      });
+      tabButtons.forEach((button) => {
+        button.setAttribute("aria-selected", String(button.dataset.tab === id));
+      });
+      if (updateHash) {
+        history.replaceState(null, "", `#${id}`);
+      }
+      if (id === "holdings") {
+        loadHoldings();
+      }
+    }
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => showTab(button.dataset.tab ?? "monitor"));
+    });
+
+    document.querySelectorAll<HTMLElement>("[data-jump]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        showTab(link.dataset.jump ?? "monitor");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    // Links inside the rendered report prose switch tabs instead of jumping to
+    // a hidden panel (for example "Recorded runs ... in backtest.md").
+    document.addEventListener("click", (event) => {
+      const link = (event.target as HTMLElement).closest<HTMLAnchorElement>(
+        'a[href="#backtests"], a[href="#method"]',
+      );
+      if (!link) return;
+      event.preventDefault();
+      showTab(link.getAttribute("href")?.slice(1) ?? "monitor");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+
+    // Full holdings: fetched once, then filtered and paged in the browser.
+    type Holding = {
+      stock: string;
+      ticker: string;
+      country: string;
+      cap: string;
+      weight: string;
+      weight_value: number;
+      day: number | null;
+      direction: string | null;
+      region: string;
+      sector: string;
+    };
+
+    const PAGE_SIZE = 50;
+    let allRows: Holding[] = [];
+    let filteredRows: Holding[] = [];
+    let page = 0;
+    let sortKey: keyof Holding = "weight_value";
+    let sortDirection: 1 | -1 = -1;
+    let loading: Promise<void> | null = null;
+
+    const body = document.getElementById("holdings-body") as HTMLTableSectionElement | null;
+    const search = document.getElementById("holdings-search") as HTMLInputElement | null;
+    const regionSelect = document.getElementById("holdings-region") as HTMLSelectElement | null;
+    const sectorSelect = document.getElementById("holdings-sector") as HTMLSelectElement | null;
+    const capSelect = document.getElementById("holdings-cap") as HTMLSelectElement | null;
+    const count = document.getElementById("holdings-count");
+    const pageLabel = document.getElementById("holdings-page-label");
+    const prev = document.getElementById("holdings-prev") as HTMLButtonElement | null;
+    const next = document.getElementById("holdings-next") as HTMLButtonElement | null;
+
+    function fillSelect(select: HTMLSelectElement | null, values: string[], label: string) {
+      if (!select) return;
+      values.forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+      select.setAttribute("aria-label", label);
+    }
+
+    function escapeHtml(value: unknown): string {
+      const entities: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      };
+      return String(value ?? "").replace(/[&<>"']/g, (char) => entities[char] ?? char);
+    }
+
+    function formatDay(row: Holding): string {
+      if (row.day === null) return "—";
+      const prefix = row.day > 0 ? "+" : "";
+      return `${prefix}${row.day.toFixed(2)}%`;
+    }
+
+    function dayClass(row: Holding): string {
+      if (row.day === null || row.day === 0) return "text-slate-400";
+      return row.day > 0 ? "text-emerald-700" : "text-rose-700";
+    }
+
+    function renderPage() {
+      if (!body) return;
+      const start = page * PAGE_SIZE;
+      const rows = filteredRows.slice(start, start + PAGE_SIZE);
+      body.innerHTML = rows
+        .map(
+          (row) => `
+            <tr>
+              <td class="font-medium">${escapeHtml(row.stock)}</td>
+              <td><code>${escapeHtml(row.ticker)}</code></td>
+              <td>${escapeHtml(row.region)}</td>
+              <td>${escapeHtml(row.sector)}</td>
+              <td>${escapeHtml(row.country)}</td>
+              <td>${escapeHtml(row.cap)}</td>
+              <td class="text-right tabular-nums">${escapeHtml(row.weight)}</td>
+              <td class="text-right tabular-nums ${dayClass(row)}">${row.direction === "up" ? "▲" : row.direction === "down" ? "▼" : "•"} ${formatDay(row)}</td>
+            </tr>`,
+        )
+        .join("");
+
+      if (count) {
+        count.textContent = `${filteredRows.length.toLocaleString()} of ${allRows.length.toLocaleString()} lines`;
+      }
+      if (pageLabel) {
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+        pageLabel.textContent = `Page ${page + 1} of ${totalPages}`;
+      }
+      if (prev) prev.disabled = page === 0;
+      if (next) next.disabled = start + PAGE_SIZE >= filteredRows.length;
+    }
+
+    function applyFilters() {
+      const query = (search?.value ?? "").trim().toLowerCase();
+      const region = regionSelect?.value ?? "";
+      const sector = sectorSelect?.value ?? "";
+      const cap = capSelect?.value ?? "";
+      filteredRows = allRows.filter((row) => {
+        if (region && row.region !== region) return false;
+        if (sector && row.sector !== sector) return false;
+        if (cap && row.cap !== cap) return false;
+        if (!query) return true;
+        return `${row.stock} ${row.ticker}`.toLowerCase().includes(query);
+      });
+      filteredRows.sort((left, right) => {
+        const a = left[sortKey];
+        const b = right[sortKey];
+        if (typeof a === "number" && typeof b === "number") return (a - b) * sortDirection;
+        return String(a).localeCompare(String(b)) * sortDirection;
+      });
+      page = 0;
+      renderPage();
+    }
+
+    async function loadHoldings() {
+      if (allRows.length > 0) {
+        return;
+      }
+      if (loading) {
+        return loading;
+      }
+      loading = (async () => {
+        try {
+          const response = await fetch("/projects/vallmon/holdings.json");
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = (await response.json()) as {
+            regions: Array<{
+              name: string;
+              sectors: Array<{ name: string; rows: Array<Omit<Holding, "region" | "sector">> }>;
+            }>;
+          };
+          allRows = payload.regions.flatMap((region) =>
+            region.sectors.flatMap((sector) =>
+              sector.rows.map((row) => ({ ...row, region: region.name, sector: sector.name })),
+            ),
+          );
+          const regions = [...new Set(allRows.map((row) => row.region))].sort();
+          const sectors = [...new Set(allRows.map((row) => row.sector))].sort();
+          const caps = [...new Set(allRows.map((row) => row.cap))].sort();
+          fillSelect(regionSelect, regions, "Filter by region");
+          fillSelect(sectorSelect, sectors, "Filter by sector");
+          fillSelect(capSelect, caps, "Filter by market cap");
+          applyFilters();
+        } catch (error) {
+          if (body) {
+            body.innerHTML = `<tr><td colspan="8" class="py-10 text-center text-rose-700">Could not load holdings: ${escapeHtml(String(error))}</td></tr>`;
+          }
+        } finally {
+          loading = null;
+        }
+      })();
+      return loading;
+    }
+
+    search?.addEventListener("input", applyFilters);
+    regionSelect?.addEventListener("change", applyFilters);
+    sectorSelect?.addEventListener("change", applyFilters);
+    capSelect?.addEventListener("change", applyFilters);
+    prev?.addEventListener("click", () => {
+      if (page > 0) {
+        page -= 1;
+        renderPage();
+      }
+    });
+    next?.addEventListener("click", () => {
+      if ((page + 1) * PAGE_SIZE < filteredRows.length) {
+        page += 1;
+        renderPage();
+      }
+    });
+
+    document.querySelectorAll<HTMLElement>("[data-sort]").forEach((header) => {
+      header.addEventListener("click", () => {
+        const key = header.dataset.sort as keyof Holding;
+        sortDirection = sortKey === key ? (sortDirection === 1 ? -1 : 1) : -1;
+        sortKey = key;
+        applyFilters();
+        loadHoldings();
+      });
+    });
+
+    // Everything above is initialised; now honour the incoming hash.
+    const initial = window.location.hash.replace("#", "");
+    const valid = tabButtons.some((button) => button.dataset.tab === initial);
+    showTab(valid ? initial : "monitor", false);
+  </script>
+  </body>
+</html>
