@@ -274,7 +274,7 @@ const tabs = [
       <div class="mt-10">
         <h2>Recent readings</h2>
         <div class="mt-4 overflow-x-auto rounded-xl border border-slate-200">
-          <table class="report-table w-full min-w-[760px] text-sm">
+          <table class="report-table w-full min-w-[760px] text-sm" data-sortable>
             <thead>
               <tr>
                 <th>Date</th>
@@ -361,6 +361,7 @@ const tabs = [
           Search all 6,980 lines →
         </a>
       </div>
+      <p class="mt-2 text-sm text-slate-500">Click any column header to sort the tables below.</p>
 
       <dl class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {
@@ -377,7 +378,7 @@ const tabs = [
         <div>
           <h3 class="font-condensed text-xl font-bold uppercase">By region</h3>
           <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead>
                 <tr>
                   {portfolio.region.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}
@@ -386,7 +387,7 @@ const tabs = [
               <tbody>
                 {
                   regionRows.map((row) => (
-                    <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                    <tr class:list={[row[0] === "Total" && "font-semibold"]} data-total={row[0] === "Total" ? "" : undefined}>
                       <td class="whitespace-nowrap">{row[0]}</td>
                       <td class="text-right tabular-nums">{row[1]}</td>
                       <td class="text-right tabular-nums">
@@ -412,7 +413,7 @@ const tabs = [
         <div>
           <h3 class="font-condensed text-xl font-bold uppercase">By sector</h3>
           <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead>
                 <tr>
                   {portfolio.sector.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}
@@ -421,7 +422,7 @@ const tabs = [
               <tbody>
                 {
                   sectorRows.map((row) => (
-                    <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                    <tr class:list={[row[0] === "Total" && "font-semibold"]} data-total={row[0] === "Total" ? "" : undefined}>
                       <td class="whitespace-nowrap">{row[0]}</td>
                       <td class="text-right tabular-nums">{row[1]}</td>
                       <td class="text-right tabular-nums">
@@ -448,14 +449,14 @@ const tabs = [
       <div class="mt-10">
         <h3 class="font-condensed text-xl font-bold uppercase">By market cap</h3>
         <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-          <table class="report-table w-full max-w-3xl text-sm">
+          <table class="report-table w-full max-w-3xl text-sm" data-sortable>
             <thead>
               <tr>{portfolio.market_cap.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
             </thead>
             <tbody>
               {
                 capRows.map((row) => (
-                  <tr class:list={[row[0] === "Total" && "font-semibold"]}>
+                  <tr class:list={[row[0] === "Total" && "font-semibold"]} data-total={row[0] === "Total" ? "" : undefined}>
                     <td>{row[0]}</td>
                     <td class="text-right tabular-nums">{row[1]}</td>
                     <td class="text-right tabular-nums">{row[2]}</td>
@@ -478,7 +479,7 @@ const tabs = [
           <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Region × market cap</summary>
           <p class="mt-2 text-sm text-slate-500">Weighted one-day move. A dash means the region has no priced line in that cap band.</p>
           <div class="mt-3 overflow-x-auto">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead>
                 <tr>{portfolio.region_market_cap.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
               </thead>
@@ -503,7 +504,7 @@ const tabs = [
           <summary class="cursor-pointer font-condensed text-xl font-bold uppercase">Region × sector</summary>
           <p class="mt-2 text-sm text-slate-500">Weighted one-day move. A dash means the region has no priced line in that sector.</p>
           <div class="mt-3 overflow-x-auto">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead>
                 <tr>{portfolio.region_sector.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
               </thead>
@@ -528,7 +529,7 @@ const tabs = [
       <div class="mt-12">
         <h3 class="font-condensed text-xl font-bold uppercase">Largest holdings</h3>
         <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-          <table class="report-table w-full min-w-[720px] text-sm">
+          <table class="report-table w-full min-w-[720px] text-sm" data-sortable>
             <thead>
               <tr>
                 <th>Stock</th><th>Ticker</th><th>Cap</th><th>Region</th><th>Sector</th>
@@ -564,7 +565,7 @@ const tabs = [
             (["Large", "Mid", "Small"] as const).map((label) => (
               <div>
                 <h4 class="font-condensed text-sm font-bold uppercase">{label} cap</h4>
-                <table class="report-table mt-2 w-full text-xs">
+                <table class="report-table mt-2 w-full text-xs" data-sortable>
                   <thead>
                     <tr><th>Stock</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr>
                   </thead>
@@ -590,7 +591,7 @@ const tabs = [
         <div>
           <h3 class="font-condensed text-xl font-bold uppercase">Largest moves up</h3>
           <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead><tr><th>Stock</th><th>Ticker</th><th>Cap</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr></thead>
               <tbody>
                 {portfolio.moves_up.map((row) => (
@@ -609,7 +610,7 @@ const tabs = [
         <div>
           <h3 class="font-condensed text-xl font-bold uppercase">Largest moves down</h3>
           <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
-            <table class="report-table w-full text-sm">
+            <table class="report-table w-full text-sm" data-sortable>
               <thead><tr><th>Stock</th><th>Ticker</th><th>Cap</th><th class="text-right">Weight</th><th class="text-right">Day</th></tr></thead>
               <tbody>
                 {portfolio.moves_down.map((row) => (
@@ -646,7 +647,7 @@ const tabs = [
           <h2>All holdings</h2>
           <p class="mt-1 max-w-2xl text-sm text-slate-500">
             Every equity line in the fund, grouped by region and sector. Search by
-            name, ticker or country, filter the table, and sort by weight or daily move.
+            name, ticker or country, filter the table, and sort by any column.
           </p>
         </div>
         <p class="text-sm text-slate-500" id="holdings-count">Loading…</p>
@@ -677,10 +678,10 @@ const tabs = [
             <tr>
               <th data-sort="stock" class="cursor-pointer">Stock</th>
               <th data-sort="ticker" class="cursor-pointer">Ticker</th>
-              <th>Region</th>
-              <th>Sector</th>
-              <th>Country</th>
-              <th>Cap</th>
+              <th data-sort="region" class="cursor-pointer">Region</th>
+              <th data-sort="sector" class="cursor-pointer">Sector</th>
+              <th data-sort="country" class="cursor-pointer">Country</th>
+              <th data-sort="cap" class="cursor-pointer">Cap</th>
               <th data-sort="weight_value" class="cursor-pointer text-right">Weight</th>
               <th data-sort="day" class="cursor-pointer text-right">Day</th>
             </tr>
@@ -772,6 +773,44 @@ const tabs = [
 
     .report-table tbody tr:hover {
       background: #fff7f3;
+    }
+
+    /* Sortable columns: a permanent caret marks them as interactive, so the
+       affordance does not depend on a hover-capable pointer. */
+    .report-table th[data-sort],
+    .report-table th[data-sort-handle] {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .report-table th[data-sort]:hover,
+    .report-table th[data-sort-handle]:hover {
+      background: #eef2f7;
+      color: #0f172a;
+    }
+
+    .report-table th[data-sort]:focus-visible,
+    .report-table th[data-sort-handle]:focus-visible {
+      outline: 2px solid #f17f5a;
+      outline-offset: -2px;
+    }
+
+    .report-table th[data-sort]::after,
+    .report-table th[data-sort-handle]::after {
+      content: "↕";
+      font-size: 0.85em;
+      margin-left: 0.3rem;
+      opacity: 0.35;
+    }
+
+    .report-table th[aria-sort="ascending"]::after {
+      content: "▲";
+      opacity: 0.9;
+    }
+
+    .report-table th[aria-sort="descending"]::after {
+      content: "▼";
+      opacity: 0.9;
     }
 
     .report-prose {
@@ -930,6 +969,80 @@ const tabs = [
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Static tables: reorder the existing <tr> elements. The cells already carry
+    // their colours, arrows and flags, so sorting never re-renders them. Pinned
+    // rows (the "Total" line) always stay at the bottom, and dashes always sink.
+    function sortableCellValue(cell: HTMLTableCellElement): number | string | null {
+      const explicit = cell.dataset.value;
+      if (explicit !== undefined) return explicit === "" ? null : Number(explicit);
+      const text = (cell.textContent ?? "").replace(/[▲▼•↕]/g, "").trim();
+      if (text === "" || text === "—" || text === "–") return null;
+      const numeric = text.replace(/,/g, "").match(/^[-+]?\d+(?:\.\d+)?%?$/);
+      return numeric ? Number(numeric[0].replace("%", "")) : text.toLowerCase();
+    }
+
+    function compareValues(left: number | string, right: number | string): number {
+      if (typeof left === "number" && typeof right === "number") return left - right;
+      return String(left).localeCompare(String(right), undefined, { numeric: true });
+    }
+
+    function makeSortable(table: HTMLTableElement) {
+      const head = table.tHead?.rows[0];
+      const rowsBody = table.tBodies[0];
+      if (!head || !rowsBody) return;
+
+      const headers = Array.from(head.cells);
+      let column: number | null = null;
+      let direction: 1 | -1 = 1;
+
+      function sortBy(index: number) {
+        direction = column === index ? (direction === 1 ? -1 : 1) : 1;
+        column = index;
+
+        const rows = Array.from(rowsBody.rows);
+        const pinned = rows.filter((row) => row.hasAttribute("data-total"));
+        const sortable = rows.filter((row) => !row.hasAttribute("data-total"));
+
+        sortable.sort((left, right) => {
+          const a = sortableCellValue(left.cells[index]);
+          const b = sortableCellValue(right.cells[index]);
+          if (a === null || b === null) {
+            if (a === b) return 0;
+            return a === null ? 1 : -1;
+          }
+          return compareValues(a, b) * direction;
+        });
+
+        for (const row of sortable) rowsBody.appendChild(row);
+        for (const row of pinned) rowsBody.appendChild(row);
+
+        headers.forEach((header, headerIndex) => {
+          if (headerIndex === index) {
+            header.setAttribute("aria-sort", direction === 1 ? "ascending" : "descending");
+          } else {
+            header.removeAttribute("aria-sort");
+          }
+        });
+      }
+
+      headers.forEach((header, index) => {
+        if (!header.textContent?.trim()) return;
+        header.tabIndex = 0;
+        header.setAttribute("data-sort-handle", "");
+        header.addEventListener("click", () => sortBy(index));
+        header.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            sortBy(index);
+          }
+        });
+      });
+    }
+
+    document
+      .querySelectorAll<HTMLTableElement>("table.report-table[data-sortable]")
+      .forEach(makeSortable);
+
     // Full holdings: fetched once, then filtered and paged in the browser.
     type Holding = {
       stock: string;
@@ -1050,9 +1163,12 @@ const tabs = [
       filteredRows.sort((left, right) => {
         const a = left[sortKey];
         const b = right[sortKey];
+        if (a === null || a === undefined) return b === null || b === undefined ? 0 : 1;
+        if (b === null || b === undefined) return -1;
         if (typeof a === "number" && typeof b === "number") return (a - b) * sortDirection;
         return String(a).localeCompare(String(b)) * sortDirection;
       });
+      updateSortIndicators();
       page = 0;
       renderPage();
     }
@@ -1114,15 +1230,35 @@ const tabs = [
       }
     });
 
-    document.querySelectorAll<HTMLElement>("[data-sort]").forEach((header) => {
-      header.addEventListener("click", () => {
+    function updateSortIndicators() {
+      document.querySelectorAll<HTMLElement>("#holdings-table [data-sort]").forEach((header) => {
+        if (header.dataset.sort === sortKey) {
+          header.setAttribute("aria-sort", sortDirection === 1 ? "ascending" : "descending");
+        } else {
+          header.removeAttribute("aria-sort");
+        }
+      });
+    }
+
+    document.querySelectorAll<HTMLElement>("#holdings-table [data-sort]").forEach((header) => {
+      header.tabIndex = 0;
+      const sortHeader = () => {
         const key = header.dataset.sort as keyof Holding;
-        sortDirection = sortKey === key ? (sortDirection === 1 ? -1 : 1) : -1;
+        sortDirection = sortKey === key ? (sortDirection === 1 ? -1 : 1) : 1;
         sortKey = key;
         applyFilters();
         loadHoldings();
+      };
+      header.addEventListener("click", sortHeader);
+      header.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          sortHeader();
+        }
       });
     });
+
+    updateSortIndicators();
 
     // Everything above is initialised; now honour the incoming hash.
     const initial = window.location.hash.replace("#", "");
