@@ -109,9 +109,14 @@ const tabs = [
     <title>VALL Monitor — Rui Costa</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
       rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flag-icons@7.6.0/css/flag-icons.min.css"
     />
   </head>
   <body class="m-0 flex w-full flex-col">
@@ -375,7 +380,7 @@ const tabs = [
             <table class="report-table w-full text-sm">
               <thead>
                 <tr>
-                  {portfolio.region.headers.map((header) => <th class:list={[header !== "Region" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}
+                  {portfolio.region.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -410,7 +415,7 @@ const tabs = [
             <table class="report-table w-full text-sm">
               <thead>
                 <tr>
-                  {portfolio.sector.headers.map((header) => <th class:list={[header !== "Sector" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}
+                  {portfolio.sector.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -445,7 +450,7 @@ const tabs = [
         <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200">
           <table class="report-table w-full max-w-3xl text-sm">
             <thead>
-              <tr>{portfolio.market_cap.headers.map((header) => <th class:list={[header !== "Cap" && header !== "Median" && header !== "Weighted" && "text-right"]}>{header}</th>)}</tr>
+              <tr>{portfolio.market_cap.headers.map((header, index) => <th class:list={[index > 0 && "text-right"]}>{header}</th>)}</tr>
             </thead>
             <tbody>
               {
@@ -641,7 +646,7 @@ const tabs = [
           <h2>All holdings</h2>
           <p class="mt-1 max-w-2xl text-sm text-slate-500">
             Every equity line in the fund, grouped by region and sector. Search by
-            name or ticker, filter the table, and sort by weight or daily move.
+            name, ticker or country, filter the table, and sort by weight or daily move.
           </p>
         </div>
         <p class="text-sm text-slate-500" id="holdings-count">Loading…</p>
@@ -650,7 +655,7 @@ const tabs = [
       <div class="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
           Search
-          <input id="holdings-search" type="search" placeholder="Company or ticker" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange" />
+          <input id="holdings-search" type="search" placeholder="Company, ticker or country" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal normal-case text-slate-900 outline-none focus:border-orange" />
         </label>
         <label class="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">
           Region
@@ -930,6 +935,7 @@ const tabs = [
       stock: string;
       ticker: string;
       country: string;
+      country_code: string;
       cap: string;
       weight: string;
       weight_value: number;
@@ -979,6 +985,14 @@ const tabs = [
       return String(value ?? "").replace(/[&<>"']/g, (char) => entities[char] ?? char);
     }
 
+    // Flags come from the flag-icons stylesheet on jsDelivr; only the ISO code is
+    // in our payload. Unknown names fall back to plain text.
+    function countryFlag(code: string, name: string): string {
+      const label = escapeHtml(name);
+      if (!/^[A-Za-z]{2}$/.test(code)) return label || "—";
+      return `<span class="fi fi-${code.toLowerCase()}" role="img" aria-label="${label}" title="${label}"></span>`;
+    }
+
     function formatDay(row: Holding): string {
       if (row.day === null) return "—";
       const prefix = row.day > 0 ? "+" : "";
@@ -1002,7 +1016,7 @@ const tabs = [
               <td><code>${escapeHtml(row.ticker)}</code></td>
               <td>${escapeHtml(row.region)}</td>
               <td>${escapeHtml(row.sector)}</td>
-              <td>${escapeHtml(row.country)}</td>
+              <td class="whitespace-nowrap">${countryFlag(row.country_code, row.country)}</td>
               <td>${escapeHtml(row.cap)}</td>
               <td class="text-right tabular-nums">${escapeHtml(row.weight)}</td>
               <td class="text-right tabular-nums ${dayClass(row)}">${row.direction === "up" ? "▲" : row.direction === "down" ? "▼" : "•"} ${formatDay(row)}</td>
@@ -1031,7 +1045,7 @@ const tabs = [
         if (sector && row.sector !== sector) return false;
         if (cap && row.cap !== cap) return false;
         if (!query) return true;
-        return `${row.stock} ${row.ticker}`.toLowerCase().includes(query);
+        return `${row.stock} ${row.ticker} ${row.country}`.toLowerCase().includes(query);
       });
       filteredRows.sort((left, right) => {
         const a = left[sortKey];

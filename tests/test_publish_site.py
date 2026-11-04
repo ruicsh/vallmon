@@ -4,6 +4,7 @@ import json
 
 from publish_site import (
     _report_block,
+    country_code,
     md_to_html,
     parse_holdings,
     parse_series,
@@ -226,6 +227,17 @@ def test_parse_series_derives_rolling_drawdown(tmp_path) -> None:
     assert series[0]["delta_sigma"] == 1.0
 
 
+def test_country_code_maps_names_and_passes_codes_through() -> None:
+    assert country_code("United States") == "US"
+    assert country_code("Korea") == "KR"
+    assert country_code("Hong Kong") == "HK"
+    assert country_code("Luxembourg") == "LU"
+    assert country_code("Macau") == "MO"
+    assert country_code("tw") == "TW"
+    assert country_code("Unknown") == ""
+    assert country_code("") == ""
+
+
 def test_parse_holdings_walks_region_and_sector() -> None:
     holdings = parse_holdings(HOLDINGS_FIXTURE)
     assert [region["name"] for region in holdings] == ["North America", "Europe"]
@@ -238,12 +250,14 @@ def test_parse_holdings_walks_region_and_sector() -> None:
         "stock": "Alpha Corp",
         "ticker": "AAA",
         "country": "United States",
+        "country_code": "US",
         "cap": "Large",
         "weight": "0.60%",
         "weight_value": 0.6,
         "day": 1.2,
         "direction": "up",
     }
+    assert holdings[0]["sectors"][0]["rows"][1]["country_code"] == "CA"
     assert holdings[0]["sectors"][0]["rows"][1]["weight_value"] == 0.001
     assert holdings[1]["sectors"][0]["rows"] == []
 

@@ -397,6 +397,109 @@ def _simple_stock_table(block: str) -> list[dict[str, Any]]:
     return records
 
 
+# Country display name -> ISO 3166-1 alpha-2. The page renders flags with the
+# flag-icons stylesheet loaded from jsDelivr, which keys its classes on the
+# alpha-2 code, so this is the only mapping the publish step needs. A name that
+# is not listed (or that changes upstream) publishes an empty code and the page
+# falls back to the country name.
+COUNTRY_CODES = {
+    "Argentina": "AR",
+    "Australia": "AU",
+    "Austria": "AT",
+    "Bahrain": "BH",
+    "Bangladesh": "BD",
+    "Belgium": "BE",
+    "Bermuda": "BM",
+    "Brazil": "BR",
+    "British Virgin Islands": "VG",
+    "Canada": "CA",
+    "Cayman Islands": "KY",
+    "Chile": "CL",
+    "China": "CN",
+    "Colombia": "CO",
+    "Cyprus": "CY",
+    "Czech Republic": "CZ",
+    "Denmark": "DK",
+    "Ecuador": "EC",
+    "Egypt": "EG",
+    "Finland": "FI",
+    "France": "FR",
+    "Germany": "DE",
+    "Ghana": "GH",
+    "Greece": "GR",
+    "Guernsey": "GG",
+    "Hong Kong": "HK",
+    "Hungary": "HU",
+    "Iceland": "IS",
+    "India": "IN",
+    "Indonesia": "ID",
+    "Ireland": "IE",
+    "Isle of Man": "IM",
+    "Israel": "IL",
+    "Italy": "IT",
+    "Japan": "JP",
+    "Jersey": "JE",
+    "Kazakhstan": "KZ",
+    "Kenya": "KE",
+    "Korea": "KR",
+    "Kuwait": "KW",
+    "Liberia": "LR",
+    "Luxembourg": "LU",
+    "Macao": "MO",
+    "Macau": "MO",
+    "Malaysia": "MY",
+    "Malta": "MT",
+    "Marshall Islands": "MH",
+    "Mauritius": "MU",
+    "Mexico": "MX",
+    "Mongolia": "MN",
+    "Morocco": "MA",
+    "Netherlands": "NL",
+    "New Zealand": "NZ",
+    "Nigeria": "NG",
+    "Norway": "NO",
+    "Oman": "OM",
+    "Pakistan": "PK",
+    "Panama": "PA",
+    "Papua New Guinea": "PG",
+    "Peru": "PE",
+    "Philippines": "PH",
+    "Poland": "PL",
+    "Portugal": "PT",
+    "Qatar": "QA",
+    "Romania": "RO",
+    "Russia": "RU",
+    "Saudi Arabia": "SA",
+    "Singapore": "SG",
+    "South Africa": "ZA",
+    "Spain": "ES",
+    "Sri Lanka": "LK",
+    "Sweden": "SE",
+    "Switzerland": "CH",
+    "Taiwan": "TW",
+    "Thailand": "TH",
+    "Turkey": "TR",
+    "Ukraine": "UA",
+    "United Arab Emirates": "AE",
+    "United Kingdom": "GB",
+    "United States": "US",
+    "Uruguay": "UY",
+    "Vietnam": "VN",
+}
+
+
+def country_code(name: str) -> str:
+    """Return the ISO 3166-1 alpha-2 code for a country name.
+
+    Accepts an already-two-letter code (the report uses one when a country name
+    is missing) and returns an empty string when the name is unknown.
+    """
+    value = name.strip()
+    if len(value) == 2 and value.isalpha():
+        return value.upper()
+    return COUNTRY_CODES.get(value, "")
+
+
 def parse_holdings(text: str) -> list[dict[str, Any]]:
     """Parse the full region -> sector -> line hierarchy."""
     body = _block(text, "Holdings by region")
@@ -431,11 +534,13 @@ def parse_holdings(text: str) -> list[dict[str, Any]]:
                 if len(row) < 6 or row[0] == "Stock":
                     continue
                 day_cell = row[5]
+                country = plain(row[2])
                 rows.append(
                     {
                         "stock": plain(row[0]),
                         "ticker": plain(row[1]),
-                        "country": plain(row[2]),
+                        "country": country,
+                        "country_code": country_code(country),
                         "cap": plain(row[3]),
                         "weight": plain(row[4]),
                         "weight_value": number(row[4]) or 0.0,
