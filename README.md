@@ -13,15 +13,15 @@ _Updated automatically each trading day by the GitHub Actions workflow._
 _Read the published HTML version at <https://ruicsh.github.io/projects/vallmon>._
 
 <!-- REPORT:START -->
-_As of 2026-11-09 · 36 readings · 2026-09-21 → 2026-11-09_
+_As of 2026-11-10 · 37 readings · 2026-09-21 → 2026-11-10_
 
 ## State
 
-**Equity** — drawdown -4.75%, unchanged for 36 readings (since 2026-09-21).
+**Equity** — drawdown -4.47%, unchanged for 37 readings (since 2026-09-21).
 
-No action. Switch to cash at -15% — a further 10.3 pp.
+No action. Switch to cash at -15% — a further 10.5 pp.
 
-> Window: 36 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-17.
+> Window: 37 of 756 readings. The peak is not yet a 756-day peak, so signals are provisional until ~2029-09-16.
 
 ## Signal history
 
@@ -32,9 +32,9 @@ _No state changes yet — the switch has been in **equity** since the first read
 | Metric | Value |
 |--------|-------|
 | Peak (trailing 756d) | 3.7925 (2026-10-06) |
-| Current drawdown | -4.75% |
-| Distance to switch | 10.3 pp |
-| History seen | 36 of 756 readings |
+| Current drawdown | -4.47% |
+| Distance to switch | 10.5 pp |
+| History seen | 37 of 756 readings |
 
 _Rule: switch to cash at or below -15% of the trailing peak; return to equity at or above -5%._
 
@@ -43,15 +43,15 @@ _Rule: switch to cash at or below -15% of the trailing peak; return to equity at
 | Metric | Value |
 |--------|-------|
 | Δσ | 1.36 <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> |
-| Current σ (W=20, ann.) | 14.26% |
-| Baseline μ (N≤90) | 10.46% |
-| Term slope σ10/σ30 | 1.47 (backwardated) |
-| Latest volume | 11,803,636 units |
+| Current σ (W=20, ann.) | 14.32% |
+| Baseline μ (N≤90) | 10.56% |
+| Term slope σ10/σ30 | 1.41 (backwardated) |
+| Latest volume | 9,336,575 units |
 | Δσ min / max / median | 0.81 / 1.36 / 1.01 |
 
-**Δσ trend** `▄▃▃▃▃▃▂▂▃▃▄▃▃▃▃▃▃▂▂▂▁▁▁▂▁▁▂▂▂▃▃▃▄▇▇█` 1.10 → 1.36 (range 0.81–1.36, 36 readings)
+**Δσ trend** `▄▃▃▃▃▃▂▂▃▃▄▃▃▃▃▃▃▂▂▂▁▁▁▂▁▁▂▂▂▃▃▃▄▇▇█▇` 1.10 → 1.36 (range 0.81–1.36, 37 readings)
 
-**Term structure** (σ ann.): 10d 18.88% · 20d 14.26% · 30d 12.82% · 60d —
+**Term structure** (σ ann.): 10d 18.17% · 20d 14.32% · 30d 12.85% · 60d —
 
 _Volatility labels are sticky: a band must hold for 3 readings before the label changes._
 
@@ -59,6 +59,7 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 
 | Date | Close (GBP) | Day % | Drawdown | State | Signal | Δσ | Volatility |
 |------|------------:|------:|---------:|-------|--------|----:|------------|
+| 2026-11-10 | 3.623 | +0.29% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -4.47% | equity | hold | 1.36 | <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> |
 | 2026-11-09 | 3.612 | +1.18% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -4.75% | equity | hold | 1.36 | <img src="docs/assets/vol-expanding.svg" alt="expanding" width="19" height="12"> |
 | 2026-11-06 | 3.571 | +0.17% <img src="docs/assets/arrow-up.svg" alt="gain" width="12" height="12"> | -5.85% | equity | hold | 1.29 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-11-05 | 3.564 | -2.40% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -6.01% | equity | hold | 1.32 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
@@ -78,9 +79,8 @@ _Volatility labels are sticky: a band must hold for 3 readings before the label 
 | 2026-10-16 | 3.699 | -0.54% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -2.47% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-15 | 3.719 | -0.88% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.94% | equity | hold | 0.95 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 | 2026-10-14 | 3.752 | -0.05% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.07% | equity | hold | 0.96 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
-| 2026-10-13 | 3.754 | -0.53% <img src="docs/assets/arrow-down.svg" alt="loss" width="12" height="12"> | -1.02% | equity | hold | 0.98 | <img src="docs/assets/vol-normal.svg" alt="normal" width="19" height="12"> |
 
-_Last 20 of 36 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
+_Last 20 of 37 readings. Full series: [data/delta_sigma.csv](data/delta_sigma.csv)._
 
 _How these are computed: [docs/methodology.md](docs/methodology.md)._
 <!-- REPORT:END -->
