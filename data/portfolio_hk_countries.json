@@ -40,6 +40,10 @@
    "country": "China",
    "updated": "2026-11-03"
   },
+  "sedol:6080716": {
+   "country": "China",
+   "updated": "2026-11-16"
+  },
   "sedol:6081690": {
    "country": "Hong Kong",
    "updated": "2026-11-03"
@@ -1789,6 +1793,6 @@
    "updated": "2026-11-03"
   }
  },
- "updated": "2026-11-13",
+ "updated": "2026-11-16",
  "version": 1
 }
